@@ -1,6 +1,6 @@
 # Records
 
-**A Letterboxd-style music review platform** — rate songs, albums, and artists, share reviews with a community, and keep a personal music diary.
+**A music review platform** — rate songs, albums, and artists, share reviews with a community, and keep a personal music diary.
 
 Built as a full-stack web project for internship applications, Records combines a cinematic dark UI with real music data from Spotify and Last.fm, plus auth, profiles, and social features powered by Supabase.
 
@@ -31,20 +31,6 @@ Built as a full-stack web project for internship applications, Records combines 
 
 ---
 
-## Screenshots
-
-> Replace these placeholders with real captures before sharing your portfolio or GitHub.
-
-| Screen | Preview |
-| --- | --- |
-| Home / trending | `![Home](docs/screenshots/home.png)` |
-| Discover / search | `![Discover](docs/screenshots/discover.png)` |
-| Song or album page | `![Song page](docs/screenshots/song.png)` |
-| Profile | `![Profile](docs/screenshots/profile.png)` |
-
-Suggested folder: `docs/screenshots/`
-
----
 
 ## Environment Variables
 
