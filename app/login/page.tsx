@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { supabase } from "../lib/supabaseClient"
+import { useEffect, useState } from "react"
+import { getSupabaseConfigError, supabase } from "../lib/supabaseClient"
 import AppShell from "../components/AppShell"
 
 export default function LoginPage() {
@@ -10,7 +10,18 @@ export default function LoginPage() {
   const [message, setMessage] = useState("")
   const [loading, setLoading] = useState(false)
 
+  useEffect(() => {
+    const problem = getSupabaseConfigError()
+    if (problem) setMessage(problem)
+  }, [])
+
   async function login() {
+    const problem = getSupabaseConfigError()
+    if (problem) {
+      setMessage(problem)
+      return
+    }
+
     setLoading(true)
     setMessage("")
 
