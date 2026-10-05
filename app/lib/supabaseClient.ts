@@ -1,10 +1,9 @@
 import { createBrowserClient } from "@supabase/ssr"
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim()
-const key = (
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
-)?.trim()
+const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim()
+const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim()
+const key = publishableKey || anonKey
 
 function getConfigError(): string | null {
   if (!url || !key) {
@@ -19,14 +18,10 @@ function getConfigError(): string | null {
 /** Human-readable config problem, or null when the client is ready. */
 export const supabaseConfigError = getConfigError()
 
-if (supabaseConfigError) {
-  console.error(`[Records] ${supabaseConfigError}`)
-}
-
 /**
  * Browser Supabase client.
- * Does not throw at import/build time when env is missing (avoids opaque build crashes).
- * Misconfiguration is reported via `supabaseConfigError` / console.error instead.
+ * Missing env must not log or throw here. Next.js treats console.error during
+ * module evaluation as a page crash.
  */
 export const supabase = createBrowserClient(
   supabaseConfigError ? "https://placeholder.supabase.co" : url!,
