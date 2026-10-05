@@ -18,17 +18,22 @@ export default function LoginPage() {
     setLoading(true)
     setMessage("")
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email, password })
 
-    if (error) {
-      setMessage(error.message)
+      if (error) {
+        setMessage(error.message)
+        setLoading(false)
+        return
+      }
+
+      setMessage("Logged in!")
       setLoading(false)
-      return
+      router.push("/profile")
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Could not log in.")
+      setLoading(false)
     }
-
-    setMessage("Logged in!")
-    setLoading(false)
-    router.push("/profile")
   }
 
   return (

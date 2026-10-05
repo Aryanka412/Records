@@ -19,21 +19,28 @@ export default function SignupPage() {
 
     const displayName = username.trim() || "Anonymous"
 
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: { username: displayName },
-      },
-    })
-
-    if (error) {
-      setMessage(error.message)
+    let data
+    try {
+      const result = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: { username: displayName },
+        },
+      })
+      data = result.data
+      if (result.error) {
+        setMessage(result.error.message)
+        setLoading(false)
+        return
+      }
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Could not create an account.")
       setLoading(false)
       return
     }
 
-    if (data.user) {
+    if (data?.user) {
       const { error: profileError } = await supabase.from("profiles").upsert({
         id: data.user.id,
         username: displayName,

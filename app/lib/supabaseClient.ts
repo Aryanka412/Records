@@ -18,12 +18,34 @@ function getConfigError(): string | null {
 /** Human-readable config problem, or null when the client is ready. */
 export const supabaseConfigError = getConfigError()
 
+async function browserFetch(input: RequestInfo | URL, init?: RequestInit) {
+  try {
+    return await fetch(input, init)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to fetch"
+    return new Response(
+      JSON.stringify({
+        message:
+          message === "Failed to fetch"
+            ? "Could not reach Supabase. Check your connection and try again."
+            : message,
+        code: "network_error",
+      }),
+      { status: 503, headers: { "content-type": "application/json" } }
+    )
+  }
+}
+
 /**
  * Browser Supabase client.
- * Missing env must not log or throw here. Next.js treats console.error during
- * module evaluation as a page crash.
+ * isSingleton is off so a client created before env vars loaded is not reused.
+ * Network failures become a normal auth error instead of a Next.js crash overlay.
  */
 export const supabase = createBrowserClient(
   supabaseConfigError ? "https://placeholder.supabase.co" : url!,
-  supabaseConfigError ? "placeholder-anon-key" : key!
+  supabaseConfigError ? "placeholder-anon-key" : key!,
+  {
+    isSingleton: false,
+    global: { fetch: browserFetch },
+  }
 )
