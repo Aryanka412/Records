@@ -797,12 +797,12 @@ export default function Home() {
               Join Records and build a personal log of every piece of music that
               matters to you.
             </p>
-            <Link
+            <a
               href="/signup"
               className="mt-10 inline-flex items-center justify-center rounded-full bg-white px-8 py-3.5 text-sm font-semibold text-black transition-all duration-300 hover:scale-[1.03] hover:bg-zinc-100 active:scale-[0.98]"
             >
               Join Records — it&apos;s free
-            </Link>
+            </a>
           </div>
         </section>
       </div>

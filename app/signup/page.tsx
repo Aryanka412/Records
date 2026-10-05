@@ -1,7 +1,6 @@
 "use client"
 
 import { useState } from "react"
-import Link from "next/link"
 import { supabase } from "../lib/supabaseClient"
 import AppShell from "../components/AppShell"
 
@@ -12,8 +11,7 @@ export default function SignupPage() {
   const [message, setMessage] = useState("")
   const [loading, setLoading] = useState(false)
 
-  async function signup(e: React.FormEvent) {
-    e.preventDefault()
+  async function signup() {
     setLoading(true)
     setMessage("")
 
@@ -60,6 +58,12 @@ export default function SignupPage() {
     setLoading(false)
   }
 
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    event.stopPropagation()
+    void signup()
+  }
+
   return (
     <AppShell>
       <section className="auth-page flex min-h-[70vh] items-center justify-center py-10 sm:py-14">
@@ -79,7 +83,7 @@ export default function SignupPage() {
               Start rating albums, logging songs, and sharing reviews.
             </p>
 
-            <form onSubmit={signup} className="mt-8 space-y-4">
+            <form onSubmit={handleSubmit} className="mt-8 space-y-4">
               <input
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
@@ -102,7 +106,7 @@ export default function SignupPage() {
                 className="input-field"
                 required
               />
-              <button disabled={loading} className="btn btn-primary w-full">
+              <button type="submit" disabled={loading} className="btn btn-primary w-full">
                 {loading ? "Creating..." : "Sign up — it's free"}
               </button>
             </form>
@@ -115,9 +119,9 @@ export default function SignupPage() {
 
             <p className="mt-8 text-center text-sm text-zinc-500">
               Already have an account?{" "}
-              <Link href="/login" className="link-muted">
+              <a href="/login" className="link-muted">
                 Log in
-              </Link>
+              </a>
             </p>
           </div>
         </div>

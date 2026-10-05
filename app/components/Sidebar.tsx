@@ -116,12 +116,12 @@ export default function Sidebar({ mobileOpen, onClose }: SidebarProps) {
           </>
         ) : (
           <>
-            <Link href="/signup" className="btn btn-primary w-full !text-sm" onClick={onClose}>
+            <a href="/signup" className="btn btn-primary w-full !text-sm" onClick={onClose}>
               Sign up
-            </Link>
-            <Link href="/login" className="btn btn-secondary w-full !text-sm mt-2" onClick={onClose}>
+            </a>
+            <a href="/login" className="btn btn-secondary w-full !text-sm mt-2" onClick={onClose}>
               Log in
-            </Link>
+            </a>
           </>
         )}
       </div>

@@ -135,9 +135,9 @@ export default function NotificationsPage() {
         {!userId && (
           <div className="glass-panel mt-10 rounded-2xl p-8 text-center sm:p-10">
             <p className="text-body">Log in to see your notifications.</p>
-            <Link href="/login" className="btn btn-primary mt-6 inline-flex">
+            <a href="/login" className="btn btn-primary mt-6 inline-flex">
               Log in
-            </Link>
+            </a>
           </div>
         )}
 

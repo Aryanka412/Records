@@ -31,21 +31,21 @@ async function browserFetch(input: RequestInfo | URL, init?: RequestInit) {
             : message,
         code: "network_error",
       }),
-      { status: 503, headers: { "content-type": "application/json" } }
+      { status: 400, headers: { "content-type": "application/json" } }
     )
   }
 }
 
 /**
  * Browser Supabase client.
- * isSingleton is off so a client created before env vars loaded is not reused.
- * Network failures become a normal auth error instead of a Next.js crash overlay.
+ * One shared client when config is valid, so auth calls do not queue on
+ * competing browser locks. A missing config uses a throwaway client that is
+ * not cached. Network failures become a normal auth error.
  */
 export const supabase = createBrowserClient(
   supabaseConfigError ? "https://placeholder.supabase.co" : url!,
   supabaseConfigError ? "placeholder-anon-key" : key!,
-  {
-    isSingleton: false,
-    global: { fetch: browserFetch },
-  }
+  supabaseConfigError
+    ? { isSingleton: false }
+    : { global: { fetch: browserFetch } }
 )

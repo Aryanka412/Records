@@ -1,20 +1,16 @@
 "use client"
 
 import { useState } from "react"
-import Link from "next/link"
-import { useRouter } from "next/navigation"
 import { supabase } from "../lib/supabaseClient"
 import AppShell from "../components/AppShell"
 
 export default function LoginPage() {
-  const router = useRouter()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [message, setMessage] = useState("")
   const [loading, setLoading] = useState(false)
 
-  async function login(e: React.FormEvent) {
-    e.preventDefault()
+  async function login() {
     setLoading(true)
     setMessage("")
 
@@ -27,13 +23,17 @@ export default function LoginPage() {
         return
       }
 
-      setMessage("Logged in!")
-      setLoading(false)
-      router.push("/profile")
+      window.location.assign("/profile")
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Could not log in.")
       setLoading(false)
     }
+  }
+
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    event.stopPropagation()
+    void login()
   }
 
   return (
@@ -55,7 +55,7 @@ export default function LoginPage() {
               Continue your music diary on Records.
             </p>
 
-            <form onSubmit={login} className="mt-8 space-y-4">
+            <form onSubmit={handleSubmit} className="mt-8 space-y-4">
               <input
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -72,7 +72,7 @@ export default function LoginPage() {
                 className="input-field"
                 required
               />
-              <button disabled={loading} className="btn btn-primary w-full">
+              <button type="submit" disabled={loading} className="btn btn-primary w-full">
                 {loading ? "Logging in..." : "Log in"}
               </button>
             </form>
@@ -85,9 +85,9 @@ export default function LoginPage() {
 
             <p className="mt-8 text-center text-sm text-zinc-500">
               No account yet?{" "}
-              <Link href="/signup" className="link-muted">
+              <a href="/signup" className="link-muted">
                 Sign up
-              </Link>
+              </a>
             </p>
           </div>
         </div>
