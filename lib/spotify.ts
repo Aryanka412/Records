@@ -1,15 +1,70 @@
 let cachedToken: { value: string; expiresAt: number } | null = null
 
+export function readSpotifyCredentials() {
+  const clientId = process.env.SPOTIFY_CLIENT_ID?.trim() ?? ""
+  const clientSecret = process.env.SPOTIFY_CLIENT_SECRET?.trim() ?? ""
+  return { clientId, clientSecret }
+}
+
+export function readLastfmKey() {
+  return process.env.LASTFM_API_KEY?.trim() ?? ""
+}
+
+export function missingSpotifyCredentialsBody() {
+  const { clientId, clientSecret } = readSpotifyCredentials()
+  if (clientId && clientSecret) return null
+  return {
+    error: "Missing Spotify credentials" as const,
+    hasClientId: Boolean(clientId),
+    hasClientSecret: Boolean(clientSecret),
+  }
+}
+
+export function spotifyCredentialsResponse(): Response {
+  const { clientId, clientSecret } = readSpotifyCredentials()
+  return Response.json(
+    {
+      error: "Missing Spotify credentials",
+      hasClientId: Boolean(clientId),
+      hasClientSecret: Boolean(clientSecret),
+    },
+    { status: 500 }
+  )
+}
+
+export function missingLastfmResponse() {
+  if (readLastfmKey()) return null
+  return Response.json({ error: "Missing Last.fm API key" }, { status: 500 })
+}
+
+export function spotifyFailureMessage(data: unknown, fallback: string) {
+  if (!data || typeof data !== "object") return fallback
+  const record = data as {
+    error?: unknown
+    error_description?: unknown
+    message?: unknown
+  }
+  if (typeof record.error_description === "string" && record.error_description.trim()) {
+    return record.error_description.trim()
+  }
+  if (typeof record.error === "string" && record.error.trim()) return record.error.trim()
+  if (record.error && typeof record.error === "object") {
+    const message = (record.error as { message?: unknown }).message
+    if (typeof message === "string" && message.trim()) return message.trim()
+  }
+  if (typeof record.message === "string" && record.message.trim()) return record.message.trim()
+  return fallback
+}
+
 export function invalidateSpotifyToken() {
   cachedToken = null
 }
 
 export async function getSpotifyToken(forceRefresh = false) {
-  const id = process.env.SPOTIFY_CLIENT_ID
-  const secret = process.env.SPOTIFY_CLIENT_SECRET
+  const { clientId, clientSecret } = readSpotifyCredentials()
 
-  if (!id || !secret) {
-    throw new Error("Missing Spotify keys")
+  if (!clientId || !clientSecret) {
+    throw new Error("Missing Spotify credentials")
   }
 
   if (
@@ -23,18 +78,18 @@ export async function getSpotifyToken(forceRefresh = false) {
   const tokenRes = await fetch("https://accounts.spotify.com/api/token", {
     method: "POST",
     headers: {
-      Authorization: `Basic ${Buffer.from(`${id}:${secret}`).toString("base64")}`,
+      Authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString("base64")}`,
       "Content-Type": "application/x-www-form-urlencoded",
     },
     body: "grant_type=client_credentials",
     cache: "no-store",
   })
 
-  const tokenData = await tokenRes.json()
+  const tokenData = await tokenRes.json().catch(() => null)
 
-  if (!tokenRes.ok || !tokenData.access_token) {
+  if (!tokenRes.ok || !tokenData?.access_token) {
     invalidateSpotifyToken()
-    throw new Error("Spotify token request failed")
+    throw new Error(spotifyFailureMessage(tokenData, `Spotify token request failed (${tokenRes.status})`))
   }
 
   cachedToken = {
@@ -762,7 +817,7 @@ export type FeaturedHeroArtist = {
 
 export async function getFeaturedHeroArtists(limit = 5): Promise<FeaturedHeroArtist[]> {
   const token = await getSpotifyToken()
-  const lastKey = process.env.LASTFM_API_KEY?.trim()
+  const lastKey = readLastfmKey()
 
   let artistNames: string[] = []
 

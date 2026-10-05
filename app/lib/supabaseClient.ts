@@ -4,19 +4,22 @@ import type { SupabaseClient } from "@supabase/supabase-js"
 /**
  * Browser Supabase client.
  *
- * Put `.env.local` in the project root, beside package.json:
+ * Put `.env.local` in the project root, beside package.json, then restart `npm run dev`.
+ * Next.js only reads env files at startup.
+ *
  *   NEXT_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
- *   NEXT_PUBLIC_SUPABASE_ANON_KEY=YOUR_KEY
- *   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=YOUR_KEY
+ *   NEXT_PUBLIC_SUPABASE_ANON_KEY=YOUR_SUPABASE_KEY
+ *   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=YOUR_SUPABASE_KEY
+ *   SPOTIFY_CLIENT_ID=YOUR_SPOTIFY_ID
+ *   SPOTIFY_CLIENT_SECRET=YOUR_SPOTIFY_SECRET
+ *   LASTFM_API_KEY=YOUR_LASTFM_KEY
  *
  * The anon key is used when it is set. The publishable key is the fallback.
- * Restart `npm run dev` after changing env vars. Next.js only reads them at startup.
- *
  * Direct `process.env.NEXT_PUBLIC_*` reads are inlined when the client bundle is
  * compiled. The root layout also prints the live server values into
- * `#records-supabase-config`, so a bundle compiled before `.env` existed can
- * still reach Supabase. This module never calls console.error: Next.js turns
- * that into a crash overlay while the module loads.
+ * `#records-supabase-config`, so a bundle compiled before `.env.local` existed
+ * can still reach Supabase. A missing config is logged once after this module
+ * finishes loading, so the import itself does not crash the page.
  */
 
 type PublicConfig = { url: string; key: string }
@@ -71,6 +74,18 @@ export function getSupabaseConfigError(): string | null {
  * Call getSupabaseConfigError() after the page has mounted so the layout script is available.
  */
 export const supabaseConfigError: string | null = getSupabaseConfigError()
+
+let reportedSupabaseConfigError = false
+
+if (typeof setTimeout === "function") {
+  setTimeout(() => {
+    if (reportedSupabaseConfigError) return
+    const message = getSupabaseConfigError()
+    if (!message) return
+    reportedSupabaseConfigError = true
+    console.error(`[Records] ${message}`)
+  }, 0)
+}
 
 async function browserFetch(input: RequestInfo | URL, init?: RequestInit) {
   try {

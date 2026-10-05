@@ -1,12 +1,17 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { getSupabaseConfigError } from "../lib/supabaseClient"
+import { getSupabaseConfigError, supabaseConfigError } from "../lib/supabaseClient"
 import AppShell from "../components/AppShell"
 
 const CONFIG_MESSAGE = "Supabase is not configured. Check your .env.local file."
 const CONNECTION_MESSAGE =
-  "Could not connect to Supabase. Check your Supabase URL/key and restart npm run dev."
+  "Could not connect to Supabase. Check .env.local and restart npm run dev."
+
+function currentSupabaseConfigError() {
+  if (typeof document === "undefined") return supabaseConfigError
+  return getSupabaseConfigError()
+}
 
 function cleanLoginMessage(error: unknown) {
   const message = error instanceof Error ? error.message : ""
@@ -23,11 +28,11 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    if (getSupabaseConfigError()) setMessage(CONFIG_MESSAGE)
+    if (currentSupabaseConfigError()) setMessage(CONFIG_MESSAGE)
   }, [])
 
   async function login() {
-    if (getSupabaseConfigError()) {
+    if (currentSupabaseConfigError()) {
       setMessage(CONFIG_MESSAGE)
       return
     }

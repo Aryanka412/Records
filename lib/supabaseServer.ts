@@ -3,7 +3,7 @@ import { cookies } from "next/headers"
 import { readSupabaseEnv } from "./supabaseEnv"
 
 export const CONNECTION_MESSAGE =
-  "Could not connect to Supabase. Check your Supabase URL/key and restart npm run dev."
+  "Could not connect to Supabase. Check .env.local and restart npm run dev."
 
 export const CONFIG_MESSAGE = "Supabase is not configured. Check your .env.local file."
 
