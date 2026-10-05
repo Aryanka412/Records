@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { supabaseConfigError } from "../lib/supabaseClient"
+import { getSupabaseConfigError } from "../lib/supabaseClient"
 import AppShell from "../components/AppShell"
 
 const CONFIG_MESSAGE = "Supabase is not configured. Check your .env.local file."
@@ -23,11 +23,11 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    if (supabaseConfigError) setMessage(CONFIG_MESSAGE)
+    if (getSupabaseConfigError()) setMessage(CONFIG_MESSAGE)
   }, [])
 
   async function login() {
-    if (supabaseConfigError) {
+    if (getSupabaseConfigError()) {
       setMessage(CONFIG_MESSAGE)
       return
     }

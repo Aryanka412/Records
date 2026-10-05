@@ -1,4 +1,5 @@
 import { createBrowserClient } from "@supabase/ssr"
+import type { SupabaseClient } from "@supabase/supabase-js"
 
 /**
  * Browser Supabase client.
@@ -10,13 +11,49 @@ import { createBrowserClient } from "@supabase/ssr"
  *
  * The anon key is used when it is set. The publishable key is the fallback.
  * Restart `npm run dev` after changing env vars. Next.js only reads them at startup.
+ *
+ * Direct `process.env.NEXT_PUBLIC_*` reads are inlined when the client bundle is
+ * compiled. The root layout also prints the live server values into
+ * `#records-supabase-config`, so a bundle compiled before `.env` existed can
+ * still reach Supabase. This module never calls console.error: Next.js turns
+ * that into a crash overlay while the module loads.
  */
-const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() ?? ""
-const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim() ?? ""
-const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim() ?? ""
-const key = anonKey || publishableKey
 
-function readConfigError(): string | null {
+type PublicConfig = { url: string; key: string }
+
+function inlineConfig(): PublicConfig {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() ?? ""
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim() ?? ""
+  const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim() ?? ""
+  return { url, key: anonKey || publishableKey }
+}
+
+function scriptConfig(): PublicConfig | null {
+  if (typeof document === "undefined") return null
+  const node = document.getElementById("records-supabase-config")
+  if (!node?.textContent) return null
+  try {
+    const parsed = JSON.parse(node.textContent) as { url?: unknown; key?: unknown }
+    const url = typeof parsed.url === "string" ? parsed.url.trim() : ""
+    const key = typeof parsed.key === "string" ? parsed.key.trim() : ""
+    if (!url && !key) return null
+    return { url, key }
+  } catch {
+    return null
+  }
+}
+
+export function readBrowserSupabaseConfig(): PublicConfig {
+  const inline = inlineConfig()
+  const fromScript = scriptConfig()
+  return {
+    url: inline.url || fromScript?.url || "",
+    key: inline.key || fromScript?.key || "",
+  }
+}
+
+export function getSupabaseConfigError(): string | null {
+  const { url, key } = readBrowserSupabaseConfig()
   if (!url) {
     return "Missing NEXT_PUBLIC_SUPABASE_URL. Add it to .env.local in the project root, then restart npm run dev."
   }
@@ -31,10 +68,9 @@ function readConfigError(): string | null {
 
 /**
  * Null when the browser client can reach Supabase. Otherwise a short config problem.
- * Shown on the login and signup forms. Do not console.error here: Next.js turns that
- * into a crash overlay while this module loads.
+ * Call getSupabaseConfigError() after the page has mounted so the layout script is available.
  */
-export const supabaseConfigError = readConfigError()
+export const supabaseConfigError: string | null = getSupabaseConfigError()
 
 async function browserFetch(input: RequestInfo | URL, init?: RequestInit) {
   try {
@@ -48,10 +84,26 @@ async function browserFetch(input: RequestInfo | URL, init?: RequestInit) {
   }
 }
 
-export const supabase = createBrowserClient(
-  supabaseConfigError ? "https://placeholder.supabase.co" : url,
-  supabaseConfigError ? "placeholder-anon-key" : key,
-  supabaseConfigError
-    ? { isSingleton: false }
-    : { global: { fetch: browserFetch } }
-)
+let browserClient: SupabaseClient | undefined
+
+function getBrowserClient(): SupabaseClient {
+  if (browserClient) return browserClient
+
+  const { url, key } = readBrowserSupabaseConfig()
+  const configError = getSupabaseConfigError()
+  browserClient = configError
+    ? createBrowserClient("https://placeholder.supabase.co", "placeholder-anon-key", {
+        isSingleton: false,
+      })
+    : createBrowserClient(url, key, { global: { fetch: browserFetch } })
+
+  return browserClient
+}
+
+export const supabase: SupabaseClient = new Proxy({} as SupabaseClient, {
+  get(_target, prop) {
+    const client = getBrowserClient()
+    const value = Reflect.get(client, prop, client)
+    return typeof value === "function" ? value.bind(client) : value
+  },
+})
