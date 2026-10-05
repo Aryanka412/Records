@@ -165,7 +165,7 @@ export default function NotificationBell() {
 
             {!loading && notifications.length === 0 && (
               <p className="p-6 text-center text-sm text-zinc-500">
-                No notifications yet. Likes, comments, and follows show up here.
+                No notifications yet. Likes, comments, follows, and reviews show up here.
               </p>
             )}
 

@@ -1,3 +1,5 @@
+import { createdReviewId, notifyFollowersOfReview } from "../../../lib/notifications"
+
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL
 const key =
   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
@@ -75,6 +77,18 @@ export async function POST(request: Request) {
 
     if (!res.ok) {
       return Response.json({ error: JSON.stringify(data) }, { status: 500 })
+    }
+
+    const reviewId = createdReviewId(data)
+    if (reviewId) {
+      await notifyFollowersOfReview({
+        authorId: body.user_id || null,
+        authorUsername: body.username || "Anonymous",
+        reviewType: "album",
+        reviewId,
+        title: body.album_name || "",
+        artist: body.artist || "",
+      })
     }
 
     return Response.json({

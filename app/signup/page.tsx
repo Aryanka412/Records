@@ -17,11 +17,13 @@ export default function SignupPage() {
     setLoading(true)
     setMessage("")
 
-    const { error } = await supabase.auth.signUp({
+    const displayName = username.trim() || "Anonymous"
+
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        data: { username: username || "Anonymous" },
+        data: { username: displayName },
       },
     })
 
@@ -29,6 +31,22 @@ export default function SignupPage() {
       setMessage(error.message)
       setLoading(false)
       return
+    }
+
+    if (data.user) {
+      const { error: profileError } = await supabase.from("profiles").upsert({
+        id: data.user.id,
+        username: displayName,
+        updated_at: new Date().toISOString(),
+      })
+
+      if (profileError) {
+        setMessage(
+          "Account created, but the profile could not be saved. You can finish it from your profile page."
+        )
+        setLoading(false)
+        return
+      }
     }
 
     setMessage("Account created. Check your email if confirmation is required.")

@@ -169,7 +169,7 @@ export default function NotificationsPage() {
                 <p className="text-body">
                   {filter === "unread"
                     ? "You're all caught up."
-                    : "No notifications yet. Likes, comments, and follows show up here."}
+                    : "No notifications yet. Likes, comments, follows, and reviews show up here."}
                 </p>
               </div>
             )}
