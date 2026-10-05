@@ -29,16 +29,12 @@ function readConfigError(): string | null {
   return null
 }
 
-/** Null when the browser client can reach Supabase. Otherwise a short config problem. */
+/**
+ * Null when the browser client can reach Supabase. Otherwise a short config problem.
+ * Shown on the login and signup forms. Do not console.error here: Next.js turns that
+ * into a crash overlay while this module loads.
+ */
 export const supabaseConfigError = readConfigError()
-
-// Log after import so a missing config cannot take down the app while this module loads.
-if (typeof window !== "undefined" && supabaseConfigError) {
-  const message = supabaseConfigError
-  setTimeout(() => {
-    console.error(`[Records] ${message}`)
-  }, 0)
-}
 
 async function browserFetch(input: RequestInfo | URL, init?: RequestInit) {
   try {
