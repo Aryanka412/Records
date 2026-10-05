@@ -1,8 +1,20 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { getSupabaseConfigError, supabase } from "../lib/supabaseClient"
+import { supabase, supabaseConfigError } from "../lib/supabaseClient"
 import AppShell from "../components/AppShell"
+
+const CONFIG_MESSAGE = "Supabase is not configured. Check your .env.local file."
+const CONNECTION_MESSAGE =
+  "Could not connect to Supabase. Check your Supabase URL/key and restart npm run dev."
+
+function cleanLoginMessage(error: unknown) {
+  const message = error instanceof Error ? error.message : ""
+  if (message === "Failed to fetch" || message.includes("Failed to fetch")) {
+    return CONNECTION_MESSAGE
+  }
+  return message || "Could not log in."
+}
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
@@ -11,14 +23,12 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    const problem = getSupabaseConfigError()
-    if (problem) setMessage(problem)
+    if (supabaseConfigError) setMessage(CONFIG_MESSAGE)
   }, [])
 
   async function login() {
-    const problem = getSupabaseConfigError()
-    if (problem) {
-      setMessage(problem)
+    if (supabaseConfigError) {
+      setMessage(CONFIG_MESSAGE)
       return
     }
 
@@ -29,14 +39,14 @@ export default function LoginPage() {
       const { error } = await supabase.auth.signInWithPassword({ email, password })
 
       if (error) {
-        setMessage(error.message)
+        setMessage(cleanLoginMessage(error))
         setLoading(false)
         return
       }
 
       window.location.assign("/profile")
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Could not log in.")
+      setMessage(cleanLoginMessage(error))
       setLoading(false)
     }
   }

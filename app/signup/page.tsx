@@ -1,8 +1,20 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { getSupabaseConfigError, supabase } from "../lib/supabaseClient"
+import { supabase, supabaseConfigError } from "../lib/supabaseClient"
 import AppShell from "../components/AppShell"
+
+const CONFIG_MESSAGE = "Supabase is not configured. Check your .env.local file."
+const CONNECTION_MESSAGE =
+  "Could not connect to Supabase. Check your Supabase URL/key and restart npm run dev."
+
+function cleanSignupMessage(error: unknown) {
+  const message = error instanceof Error ? error.message : ""
+  if (message === "Failed to fetch" || message.includes("Failed to fetch")) {
+    return CONNECTION_MESSAGE
+  }
+  return message || "Could not create an account."
+}
 
 export default function SignupPage() {
   const [email, setEmail] = useState("")
@@ -12,14 +24,12 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    const problem = getSupabaseConfigError()
-    if (problem) setMessage(problem)
+    if (supabaseConfigError) setMessage(CONFIG_MESSAGE)
   }, [])
 
   async function signup() {
-    const problem = getSupabaseConfigError()
-    if (problem) {
-      setMessage(problem)
+    if (supabaseConfigError) {
+      setMessage(CONFIG_MESSAGE)
       return
     }
 
@@ -39,12 +49,12 @@ export default function SignupPage() {
       })
       data = result.data
       if (result.error) {
-        setMessage(result.error.message)
+        setMessage(cleanSignupMessage(result.error))
         setLoading(false)
         return
       }
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Could not create an account.")
+      setMessage(cleanSignupMessage(error))
       setLoading(false)
       return
     }
