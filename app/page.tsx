@@ -101,6 +101,7 @@ function SectionHeading({
 function HomeHeroSection() {
   const [artists, setArtists] = useState<HeroArtist[]>([])
   const [index, setIndex] = useState(0)
+  const [heroNote, setHeroNote] = useState("")
 
   useEffect(() => {
     fetch("/api/featured-hero")
@@ -108,9 +109,17 @@ function HomeHeroSection() {
       .then((data) => {
         if (Array.isArray(data) && data.length > 0) {
           setArtists(data)
+          return
         }
+        setHeroNote(
+          typeof data?.message === "string"
+            ? data.message
+            : "Featured artists will show here once Spotify responds."
+        )
       })
-      .catch(() => {})
+      .catch(() => {
+        setHeroNote("Featured artists could not be loaded.")
+      })
   }, [])
 
   useEffect(() => {
@@ -125,9 +134,18 @@ function HomeHeroSection() {
 
   if (!active) {
     return (
-      <section className="relative min-h-[70vh] overflow-hidden bg-black sm:min-h-[78vh]">
-        <div className="absolute inset-0 animate-pulse bg-gradient-to-br from-zinc-950 via-zinc-900 to-black" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_100%,rgba(250,45,72,0.08),transparent)]" />
+      <section className="relative flex min-h-[52vh] items-end overflow-hidden bg-black sm:min-h-[58vh]">
+        <div className="absolute inset-0 bg-gradient-to-br from-zinc-950 via-zinc-900 to-black" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_100%,rgba(250,45,72,0.12),transparent)]" />
+        <div className="relative z-10 mx-auto w-full max-w-[88rem] px-5 pb-12 pt-28 sm:px-8 sm:pb-16 lg:px-12">
+          <p className="section-label mb-4">Records</p>
+          <h1 className="max-w-3xl text-4xl font-extrabold tracking-tight text-white sm:text-6xl">
+            Rate the music you love
+          </h1>
+          <p className="mt-4 max-w-xl text-base text-zinc-300">
+            {heroNote || "Loading featured artists…"}
+          </p>
+        </div>
       </section>
     )
   }
@@ -378,6 +396,7 @@ export default function Home() {
   const [likes, setLikes] = useState<ReviewLike[]>([])
   const [userId, setUserId] = useState("")
   const [liking, setLiking] = useState("")
+  const [tracksNote, setTracksNote] = useState("")
 
   useEffect(() => {
     async function getUser() {
@@ -387,9 +406,26 @@ export default function Home() {
     }
 
     async function getTracks() {
-      const res = await fetch("/api/trending-with-covers")
-      const data = await res.json()
-      setTracks(Array.isArray(data) ? data : [])
+      try {
+        const res = await fetch("/api/trending-with-covers")
+        const data = await res.json()
+        if (Array.isArray(data)) {
+          setTracks(data)
+          if (data.length === 0) setTracksNote("No trending tracks came back.")
+          return
+        }
+        setTracks([])
+        setTracksNote(
+          typeof data?.message === "string"
+            ? data.message
+            : typeof data?.error === "string"
+              ? data.error
+              : "Trending tracks could not be loaded."
+        )
+      } catch {
+        setTracks([])
+        setTracksNote("Trending tracks could not be loaded.")
+      }
     }
 
     async function getLikes() {
@@ -662,6 +698,12 @@ export default function Home() {
                 </div>
               </motion.div>
             </Link>
+          )}
+
+          {tracks.length === 0 && tracksNote && (
+            <p className="rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-4 text-sm text-zinc-200">
+              {tracksNote}
+            </p>
           )}
 
           <div className="-mx-1 flex gap-4 overflow-x-auto px-1 pb-2 scroll-smooth [scrollbar-width:thin] sm:gap-5">

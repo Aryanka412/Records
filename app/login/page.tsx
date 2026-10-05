@@ -78,7 +78,7 @@ export default function LoginPage() {
             </form>
 
             {message && (
-              <p className="text-body mt-5 text-sm" role="status">
+              <p className="mt-5 text-sm font-medium text-white" role="status">
                 {message}
               </p>
             )}
