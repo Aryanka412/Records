@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { supabase, supabaseConfigError } from "../lib/supabaseClient"
+import { supabaseConfigError } from "../lib/supabaseClient"
 import AppShell from "../components/AppShell"
 
 const CONFIG_MESSAGE = "Supabase is not configured. Check your .env.local file."
@@ -36,47 +36,38 @@ export default function SignupPage() {
     setLoading(true)
     setMessage("")
 
-    const displayName = username.trim() || "Anonymous"
-
-    let data
     try {
-      const result = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: { username: displayName },
-        },
+      const response = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password, username }),
       })
-      data = result.data
-      if (result.error) {
-        setMessage(cleanSignupMessage(result.error))
+      const data = (await response.json().catch(() => null)) as {
+        error?: unknown
+        profileWarning?: unknown
+      } | null
+
+      if (!response.ok) {
+        const errorText = typeof data?.error === "string" ? data.error : ""
+        setMessage(cleanSignupMessage(new Error(errorText || "Could not create an account.")))
         setLoading(false)
         return
       }
-    } catch (error) {
-      setMessage(cleanSignupMessage(error))
-      setLoading(false)
-      return
-    }
 
-    if (data?.user) {
-      const { error: profileError } = await supabase.from("profiles").upsert({
-        id: data.user.id,
-        username: displayName,
-        updated_at: new Date().toISOString(),
-      })
-
-      if (profileError) {
+      if (data?.profileWarning) {
         setMessage(
           "Account created, but the profile could not be saved. You can finish it from your profile page."
         )
         setLoading(false)
         return
       }
-    }
 
-    setMessage("Account created. Check your email if confirmation is required.")
-    setLoading(false)
+      setMessage("Account created. Check your email if confirmation is required.")
+      setLoading(false)
+    } catch (error) {
+      setMessage(cleanSignupMessage(error))
+      setLoading(false)
+    }
   }
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {

@@ -12,8 +12,8 @@ export function readSupabaseEnv(): SupabasePublicConfig {
   const env = process.env
   const url = env["NEXT_PUBLIC_SUPABASE_URL"]?.trim() ?? ""
   const key = (
-    env["NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"] ||
     env["NEXT_PUBLIC_SUPABASE_ANON_KEY"] ||
+    env["NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"] ||
     ""
   ).trim()
 

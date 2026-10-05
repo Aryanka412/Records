@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { supabase, supabaseConfigError } from "../lib/supabaseClient"
+import { supabaseConfigError } from "../lib/supabaseClient"
 import AppShell from "../components/AppShell"
 
 const CONFIG_MESSAGE = "Supabase is not configured. Check your .env.local file."
@@ -36,10 +36,16 @@ export default function LoginPage() {
     setMessage("")
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password })
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      })
+      const data = (await response.json().catch(() => null)) as { error?: unknown } | null
 
-      if (error) {
-        setMessage(cleanLoginMessage(error))
+      if (!response.ok) {
+        const errorText = typeof data?.error === "string" ? data.error : ""
+        setMessage(cleanLoginMessage(new Error(errorText || "Could not log in.")))
         setLoading(false)
         return
       }
