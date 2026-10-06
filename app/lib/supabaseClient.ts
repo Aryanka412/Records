@@ -18,8 +18,9 @@ import type { SupabaseClient } from "@supabase/supabase-js"
  * Direct `process.env.NEXT_PUBLIC_*` reads are inlined when the client bundle is
  * compiled. The root layout also prints the live server values into
  * `#records-supabase-config`, so a bundle compiled before `.env.local` existed
- * can still reach Supabase. A missing config is logged once after this module
- * finishes loading, so the import itself does not crash the page.
+ * can still reach Supabase. This file does not call console.error. Next.js turns
+ * that into a red overlay while the module loads. Login and signup show
+ * `supabaseConfigError` on the form instead.
  */
 
 type PublicConfig = { url: string; key: string }
@@ -74,18 +75,6 @@ export function getSupabaseConfigError(): string | null {
  * Call getSupabaseConfigError() after the page has mounted so the layout script is available.
  */
 export const supabaseConfigError: string | null = getSupabaseConfigError()
-
-let reportedSupabaseConfigError = false
-
-if (typeof setTimeout === "function") {
-  setTimeout(() => {
-    if (reportedSupabaseConfigError) return
-    const message = getSupabaseConfigError()
-    if (!message) return
-    reportedSupabaseConfigError = true
-    console.error(`[Records] ${message}`)
-  }, 0)
-}
 
 async function browserFetch(input: RequestInfo | URL, init?: RequestInit) {
   try {
