@@ -636,9 +636,8 @@ export default function ProfilePage() {
       } else {
         alert(data.error || "Update failed.")
       }
-    } catch (error) {
-      console.error(error)
-      alert("Update failed. Check your terminal.")
+    } catch {
+      alert("Update failed. Check your connection and try again.")
     }
 
     setSavingEdit("")
@@ -682,9 +681,8 @@ export default function ProfilePage() {
       } else {
         alert(data.error || "Delete failed.")
       }
-    } catch (error) {
-      console.error(error)
-      alert("Delete failed. Check your terminal.")
+    } catch {
+      alert("Delete failed. Check your connection and try again.")
     }
 
     setDeleting("")

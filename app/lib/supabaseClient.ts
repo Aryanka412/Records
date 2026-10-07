@@ -89,6 +89,37 @@ async function browserFetch(input: RequestInfo | URL, init?: RequestInit) {
 }
 
 let browserClient: SupabaseClient | undefined
+let safeAuth: SupabaseClient["auth"] | undefined
+
+function authWithDeadSessionCleanup(auth: SupabaseClient["auth"]): SupabaseClient["auth"] {
+  if (safeAuth) return safeAuth
+  safeAuth = new Proxy(auth, {
+    get(target, prop, receiver) {
+      const value = Reflect.get(target, prop, receiver)
+      if (prop === "getSession" && typeof value === "function") {
+        return async (...args: unknown[]) => {
+          try {
+            const result = await value.apply(target, args)
+            const message = typeof result?.error?.message === "string" ? result.error.message : ""
+            if (/refresh token/i.test(message)) {
+              await target.signOut({ scope: "local" }).catch(() => undefined)
+              return { data: { session: null }, error: null }
+            }
+            return result
+          } catch (error) {
+            const message = error instanceof Error ? error.message : ""
+            if (/refresh token/i.test(message)) {
+              await target.signOut({ scope: "local" }).catch(() => undefined)
+            }
+            return { data: { session: null }, error: null }
+          }
+        }
+      }
+      return typeof value === "function" ? value.bind(target) : value
+    },
+  })
+  return safeAuth
+}
 
 function getBrowserClient(): SupabaseClient {
   if (browserClient) return browserClient
@@ -107,6 +138,7 @@ function getBrowserClient(): SupabaseClient {
 export const supabase: SupabaseClient = new Proxy({} as SupabaseClient, {
   get(_target, prop) {
     const client = getBrowserClient()
+    if (prop === "auth") return authWithDeadSessionCleanup(client.auth)
     const value = Reflect.get(client, prop, client)
     return typeof value === "function" ? value.bind(client) : value
   },

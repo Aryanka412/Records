@@ -400,9 +400,13 @@ export default function Home() {
 
   useEffect(() => {
     async function getUser() {
-      const { data } = await supabase.auth.getSession()
-      const user = data.session?.user
-      setUserId(user ? user.id : "")
+      try {
+        const { data } = await supabase.auth.getSession()
+        const user = data.session?.user
+        setUserId(user ? user.id : "")
+      } catch {
+        setUserId("")
+      }
     }
 
     async function getTracks() {
@@ -429,9 +433,13 @@ export default function Home() {
     }
 
     async function getLikes() {
-      const res = await fetch("/api/review-likes")
-      const data = await res.json()
-      setLikes(Array.isArray(data) ? data : [])
+      try {
+        const res = await fetch("/api/review-likes")
+        const data = await res.json().catch(() => null)
+        setLikes(Array.isArray(data) ? data : [])
+      } catch {
+        setLikes([])
+      }
     }
 
     async function getReviews() {
@@ -442,9 +450,9 @@ export default function Home() {
       ])
 
       const [songData, albumData, artistData] = await Promise.all([
-        songRes.json(),
-        albumRes.json(),
-        artistRes.json(),
+        songRes.json().catch(() => null),
+        albumRes.json().catch(() => null),
+        artistRes.json().catch(() => null),
       ])
 
       const songReviews: Review[] = Array.isArray(songData)
@@ -504,7 +512,7 @@ export default function Home() {
 
     getUser()
     getTracks()
-    getReviews()
+    getReviews().catch(() => setReviews([]))
     getLikes()
   }, [])
 
@@ -515,9 +523,13 @@ export default function Home() {
         return
       }
 
-      const res = await fetch(`/api/feed?user_id=${userId}`)
-      const data = await res.json()
-      setFeed(Array.isArray(data) ? data : [])
+      try {
+        const res = await fetch(`/api/feed?user_id=${userId}`)
+        const data = await res.json().catch(() => null)
+        setFeed(Array.isArray(data) ? data : [])
+      } catch {
+        setFeed([])
+      }
     }
 
     getFeed()
@@ -611,9 +623,8 @@ export default function Home() {
           alert(data.error || "Like failed.")
         }
       }
-    } catch (error) {
-      console.error(error)
-      alert("Like failed. Check your terminal.")
+    } catch {
+      alert("Like failed. Check your connection and try again.")
     }
 
     setLiking("")

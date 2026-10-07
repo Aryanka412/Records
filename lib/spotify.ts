@@ -264,7 +264,7 @@ export async function searchSpotify(query: string, limit = 10) {
       headers: { Authorization: `Bearer ${token}` },
       cache: "no-store",
     })
-    const data = await res.json()
+    const data = await res.json().catch(() => null)
     return { res, data }
   }
 
@@ -479,8 +479,8 @@ async function fetchAllArtistTracks(artistId: string, artistName: string, token:
         `https://api.spotify.com/v1/search?q=${encodeURIComponent(`artist:"${artistName}"`)}&type=track&limit=50&offset=${offset}&market=${SPOTIFY_MARKET}`,
         token
       )
-      const data = await res.json()
-      if (!res.ok) break
+      const data = await res.json().catch(() => null)
+      if (!res.ok || !data) break
       const items = data.tracks?.items
       if (!Array.isArray(items) || items.length === 0) break
 
@@ -509,8 +509,8 @@ async function fetchAllArtistTracks(artistId: string, artistName: string, token:
           `https://api.spotify.com/v1/search?q=${encodeURIComponent(`artist:${artistName}`)}&type=track&limit=50&offset=${offset}&market=${SPOTIFY_MARKET}`,
           token
         )
-        const data = await res.json()
-        if (!res.ok) break
+        const data = await res.json().catch(() => null)
+        if (!res.ok || !data) break
         const items = data.tracks?.items
         if (!Array.isArray(items) || items.length === 0) break
 
@@ -714,7 +714,7 @@ export async function findSpotifyArtist(query: string) {
       headers: { Authorization: `Bearer ${token}` },
       cache: "no-store",
     })
-    const data = await res.json()
+    const data = await res.json().catch(() => null)
     return { res, data }
   }
 

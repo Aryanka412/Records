@@ -808,9 +808,8 @@ export default function ArtistPage() {
           alert(data.error || "Like failed.")
         }
       }
-    } catch (error) {
-      console.error(error)
-      alert("Like failed. Check your terminal.")
+    } catch {
+      alert("Like failed. Check your connection and try again.")
     }
 
     setLiking("")
@@ -869,9 +868,8 @@ export default function ArtistPage() {
       } else {
         alert(data.error || "Something went wrong.")
       }
-    } catch (error) {
-      console.error(error)
-      alert("Save failed. Check your terminal.")
+    } catch {
+      alert("Save failed. Check your connection and try again.")
     }
 
     setSaving(false)

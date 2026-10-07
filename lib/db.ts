@@ -1,13 +1,8 @@
-const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-const key =
-  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+import { readSupabaseEnv } from "./supabaseEnv"
 
 export function getSupabaseConfig() {
-  if (!url || !key) {
-    return null
-  }
-
+  const { url, key } = readSupabaseEnv()
+  if (!url || !key) return null
   return { url, key }
 }
 
@@ -47,12 +42,18 @@ export async function supabaseRest<T = unknown>(
   })
 
   const text = await res.text()
-  const data = text ? JSON.parse(text) : null
+  if (!text) {
+    return { ok: res.ok, status: res.status, data: null as T }
+  }
 
-  return {
-    ok: res.ok,
-    status: res.status,
-    data: data as T,
+  try {
+    return { ok: res.ok, status: res.status, data: JSON.parse(text) as T }
+  } catch {
+    return {
+      ok: false as const,
+      status: res.status || 502,
+      data: { error: "Invalid response" } as T,
+    }
   }
 }
 
