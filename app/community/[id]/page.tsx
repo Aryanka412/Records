@@ -148,7 +148,7 @@ export default function CommunityDetailPage() {
         const postsData = await postsRes.json().catch(() => null)
         if (cancelled) return
         if (!communityRes.ok || !communityData?.id) {
-          setPageError(typeof communityData?.error === "string" ? communityData.error : "Could not load communities.")
+          setPageError(communityRes.status === 404 ? "Community not found." : "Could not load communities.")
           setCommunity(null)
         } else {
           setCommunity(communityData)
