@@ -1,34 +1,71 @@
 "use client"
 
-import { useState } from "react"
-import Link from "next/link"
-import { useRouter } from "next/navigation"
-import { supabase } from "../lib/supabaseClient"
+import { useEffect, useState } from "react"
+import { getSupabaseConfigError, supabaseConfigError } from "../lib/supabaseClient"
 import AppShell from "../components/AppShell"
 
+const CONFIG_MESSAGE = "Supabase is not configured. Check your .env.local file."
+const CONNECTION_MESSAGE =
+  "Could not connect to Supabase. Check .env.local and restart npm run dev."
+
+function currentSupabaseConfigError() {
+  if (typeof document === "undefined") return supabaseConfigError
+  return getSupabaseConfigError()
+}
+
+function cleanLoginMessage(error: unknown) {
+  const message = error instanceof Error ? error.message : ""
+  if (message === "Failed to fetch" || message.includes("Failed to fetch")) {
+    return CONNECTION_MESSAGE
+  }
+  return message || "Could not log in."
+}
+
 export default function LoginPage() {
-  const router = useRouter()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [message, setMessage] = useState("")
   const [loading, setLoading] = useState(false)
 
-  async function login(e: React.FormEvent) {
-    e.preventDefault()
-    setLoading(true)
-    setMessage("")
+  useEffect(() => {
+    if (currentSupabaseConfigError()) setMessage(CONFIG_MESSAGE)
+  }, [])
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-
-    if (error) {
-      setMessage(error.message)
-      setLoading(false)
+  async function login() {
+    if (currentSupabaseConfigError()) {
+      setMessage(CONFIG_MESSAGE)
       return
     }
 
-    setMessage("Logged in!")
-    setLoading(false)
-    router.push("/profile")
+    setLoading(true)
+    setMessage("")
+
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      })
+      const data = (await response.json().catch(() => null)) as { error?: unknown } | null
+
+      if (!response.ok) {
+        const errorText = typeof data?.error === "string" ? data.error : ""
+        setMessage(cleanLoginMessage(new Error(errorText || "Could not log in.")))
+        setLoading(false)
+        return
+      }
+
+      window.location.assign("/profile")
+    } catch (error) {
+      setMessage(cleanLoginMessage(error))
+      setLoading(false)
+    }
+  }
+
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    event.stopPropagation()
+    void login()
   }
 
   return (
@@ -50,7 +87,7 @@ export default function LoginPage() {
               Continue your music diary on Records.
             </p>
 
-            <form onSubmit={login} className="mt-8 space-y-4">
+            <form onSubmit={handleSubmit} className="mt-8 space-y-4">
               <input
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -67,22 +104,22 @@ export default function LoginPage() {
                 className="input-field"
                 required
               />
-              <button disabled={loading} className="btn btn-primary w-full">
+              <button type="submit" disabled={loading} className="btn btn-primary w-full">
                 {loading ? "Logging in..." : "Log in"}
               </button>
             </form>
 
             {message && (
-              <p className="text-body mt-5 text-sm" role="status">
+              <p className="mt-5 text-sm font-medium text-white" role="status">
                 {message}
               </p>
             )}
 
             <p className="mt-8 text-center text-sm text-zinc-500">
               No account yet?{" "}
-              <Link href="/signup" className="link-muted">
+              <a href="/signup" className="link-muted">
                 Sign up
-              </Link>
+              </a>
             </p>
           </div>
         </div>

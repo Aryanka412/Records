@@ -4,24 +4,33 @@ type LastTag = {
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
-  const artist = searchParams.get("artist")
-  const key = process.env.LASTFM_API_KEY?.trim()
+  const artist = searchParams.get("artist")?.trim() ?? ""
+  const key = process.env.LASTFM_API_KEY?.trim() ?? ""
 
   if (!artist) {
     return Response.json({ error: "Missing artist" })
   }
 
   if (!key) {
-    return Response.json({ error: "Missing Last.fm key" })
+    return Response.json({ error: "Missing Last.fm API key" }, { status: 500 })
   }
 
   const res = await fetch(
     `https://ws.audioscrobbler.com/2.0/?method=artist.getinfo&artist=${encodeURIComponent(
       artist
-    )}&api_key=${key}&format=json`
+    )}&api_key=${key}&format=json`,
+    { cache: "no-store" }
   )
 
-  const data = await res.json()
+  const data = await res.json().catch(() => null)
+
+  if (!res.ok || (data?.error && !data?.artist)) {
+    const message =
+      typeof data?.message === "string" && data.message.trim()
+        ? data.message.trim()
+        : "Last.fm request failed"
+    return Response.json({ error: message }, { status: res.ok ? 502 : res.status })
+  }
 
   const bio = data.artist?.bio?.summary || ""
   const cleanBio = bio.replace(/<a[^>]*>.*?<\/a>/g, "").trim()

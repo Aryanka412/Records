@@ -1,5 +1,6 @@
-import { getArtistCatalog, getArtistCatalogById } from "../../../lib/spotify"
+import { getArtistCatalog, getArtistCatalogById, missingSpotifyCredentialsBody, spotifyCredentialsResponse } from "../../../lib/spotify"
 
+export const runtime = "nodejs"
 export const maxDuration = 60
 export const dynamic = "force-dynamic"
 
@@ -12,6 +13,8 @@ export async function GET(request: Request) {
     if (!artist && !id) {
       return Response.json({ error: "Missing artist" }, { status: 400 })
     }
+
+    if (missingSpotifyCredentialsBody()) return spotifyCredentialsResponse()
 
     const catalog =
       id && artist
@@ -26,7 +29,10 @@ export async function GET(request: Request) {
 
     return Response.json(catalog)
   } catch (error: unknown) {
+    if (error instanceof Error && error.message === "Missing Spotify credentials") {
+      return spotifyCredentialsResponse()
+    }
     const message = error instanceof Error ? error.message : "Catalog fetch failed"
-    return Response.json({ error: "Catalog fetch failed", message }, { status: 500 })
+    return Response.json({ error: message, message }, { status: 500 })
   }
 }

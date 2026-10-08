@@ -135,9 +135,9 @@ export default function NotificationsPage() {
         {!userId && (
           <div className="glass-panel mt-10 rounded-2xl p-8 text-center sm:p-10">
             <p className="text-body">Log in to see your notifications.</p>
-            <Link href="/login" className="btn btn-primary mt-6 inline-flex">
+            <a href="/login" className="btn btn-primary mt-6 inline-flex">
               Log in
-            </Link>
+            </a>
           </div>
         )}
 
@@ -169,7 +169,7 @@ export default function NotificationsPage() {
                 <p className="text-body">
                   {filter === "unread"
                     ? "You're all caught up."
-                    : "No notifications yet. Likes, comments, and follows show up here."}
+                    : "No notifications yet. Likes, comments, follows, and reviews show up here."}
                 </p>
               </div>
             )}

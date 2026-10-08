@@ -636,9 +636,8 @@ export default function ProfilePage() {
       } else {
         alert(data.error || "Update failed.")
       }
-    } catch (error) {
-      console.error(error)
-      alert("Update failed. Check your terminal.")
+    } catch {
+      alert("Update failed. Check your connection and try again.")
     }
 
     setSavingEdit("")
@@ -682,9 +681,8 @@ export default function ProfilePage() {
       } else {
         alert(data.error || "Delete failed.")
       }
-    } catch (error) {
-      console.error(error)
-      alert("Delete failed. Check your terminal.")
+    } catch {
+      alert("Delete failed. Check your connection and try again.")
     }
 
     setDeleting("")
@@ -721,12 +719,12 @@ export default function ProfilePage() {
             <p className="text-base text-zinc-400">
               You need to log in to see your personal reviews.
             </p>
-            <Link
+            <a
               href="/login"
               className="mt-6 inline-flex rounded-full bg-[#fa2d48] px-6 py-3 text-sm font-semibold text-white transition-all hover:bg-[#ff3d56]"
             >
               Log in
-            </Link>
+            </a>
           </div>
         )}
 

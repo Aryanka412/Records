@@ -1,13 +1,11 @@
 import { getReviewOwner, type ReviewType } from "../../../lib/db"
 import { createNotification, getActorUsername } from "../../../lib/notifications"
 
-const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-const key =
-  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+import { readSupabaseEnv } from "../../../lib/supabaseEnv"
 
 export async function GET() {
   try {
+    const { url, key } = readSupabaseEnv()
     if (!url || !key) {
       return Response.json({ error: "Missing Supabase keys" }, { status: 500 })
     }
@@ -22,7 +20,7 @@ export async function GET() {
       }
     )
 
-    const data = await res.json()
+    const data = await res.json().catch(() => null)
 
     if (!res.ok) {
       return Response.json({ error: JSON.stringify(data) }, { status: 500 })
@@ -42,6 +40,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    const { url, key } = readSupabaseEnv()
     if (!url || !key) {
       return Response.json({ error: "Missing Supabase keys" }, { status: 500 })
     }
@@ -70,7 +69,7 @@ export async function POST(request: Request) {
       }),
     })
 
-    const data = await res.json()
+    const data = await res.json().catch(() => null)
 
     if (!res.ok) {
       return Response.json({ error: JSON.stringify(data) }, { status: 500 })
@@ -109,6 +108,7 @@ export async function POST(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
+    const { url, key } = readSupabaseEnv()
     if (!url || !key) {
       return Response.json({ error: "Missing Supabase keys" }, { status: 500 })
     }
@@ -137,7 +137,7 @@ export async function DELETE(request: Request) {
       }
     )
 
-    const data = await res.json()
+    const data = await res.json().catch(() => null)
 
     if (!res.ok) {
       return Response.json({ error: JSON.stringify(data) }, { status: 500 })

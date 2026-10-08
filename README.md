@@ -103,11 +103,11 @@ In the Supabase SQL Editor, run the schema in:
 supabase/schema.sql
 ```
 
-That creates tables for profiles, reviews, likes, comments, follows, and notifications, plus storage-related setup as defined in the file. Enable Row Level Security policies as documented in that schema.
+That creates `profiles`, `reviews`, `album_reviews`, `artist_reviews`, `review_likes`, `review_comments`, `follows`, and `notifications`, plus row level security. It also adds a signup trigger that inserts a profile row, backfills profiles for existing users, and creates a public `avatars` storage bucket. The script is safe to run again if you already applied an older version.
 
-### 4. Configure Storage (avatars)
+### 4. Avatars
 
-In Supabase → Storage, ensure an avatars (or equivalent) bucket exists and matches the policies in `supabase/schema.sql` so authenticated users can upload profile images.
+The schema creates the public `avatars` bucket and policies so a logged-in user can upload a photo into their own folder (`{userId}/...`). Confirm the bucket is public in Supabase → Storage if an upload URL does not load.
 
 ### 5. Run the app
 

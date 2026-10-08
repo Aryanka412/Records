@@ -1,5 +1,6 @@
-import { getSpotifyToken } from "../../../lib/spotify"
+import { getSpotifyToken, missingSpotifyCredentialsBody, spotifyCredentialsResponse, spotifyFailureMessage } from "../../../lib/spotify"
 
+export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 
 async function safeJson(res: Response) {
@@ -18,6 +19,8 @@ export async function GET(request: Request) {
     return Response.json({ error: "Missing artist" }, { status: 400 })
   }
 
+  if (missingSpotifyCredentialsBody()) return spotifyCredentialsResponse()
+
   try {
     const token = await getSpotifyToken()
 
@@ -26,6 +29,12 @@ export async function GET(request: Request) {
       { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" }
     )
     const artistData = await safeJson(artistRes)
+    if (!artistRes.ok) {
+      return Response.json(
+        { error: spotifyFailureMessage(artistData, "Spotify search failed") },
+        { status: artistRes.status }
+      )
+    }
     const foundArtist = artistData?.artists?.items?.[0]
 
     if (!foundArtist) {
@@ -37,6 +46,12 @@ export async function GET(request: Request) {
       { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" }
     )
     const albumData = await safeJson(albumRes)
+    if (!albumRes.ok) {
+      return Response.json(
+        { error: spotifyFailureMessage(albumData, "Spotify search failed") },
+        { status: albumRes.status }
+      )
+    }
 
     let albums =
       albumData?.items?.map((album: {
@@ -93,7 +108,11 @@ export async function GET(request: Request) {
     })
 
     return Response.json(uniqueAlbums)
-  } catch {
-    return Response.json([])
+  } catch (error) {
+    if (error instanceof Error && error.message === "Missing Spotify credentials") {
+      return spotifyCredentialsResponse()
+    }
+    const message = error instanceof Error ? error.message : "Spotify request failed"
+    return Response.json({ error: message }, { status: 502 })
   }
 }

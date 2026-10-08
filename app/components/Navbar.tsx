@@ -9,6 +9,7 @@ import NotificationBell from "./NotificationBell"
 const navLinks = [
   { href: "/", label: "Home" },
   { href: "/discover", label: "Discover" },
+  { href: "/community", label: "Communities" },
   { href: "/profile", label: "Profile" },
 ]
 
@@ -129,18 +130,18 @@ export default function Navbar() {
             </button>
           ) : (
             <>
-              <Link
+              <a
                 href="/login"
                 className="hidden rounded-full px-3.5 py-2 text-sm font-medium text-zinc-400 transition-all hover:bg-white/[0.05] hover:text-white sm:inline-flex sm:px-4"
               >
                 Log in
-              </Link>
-              <Link
+              </a>
+              <a
                 href="/signup"
                 className="inline-flex items-center justify-center rounded-full bg-[#fa2d48] px-4 py-2 text-sm font-semibold text-white shadow-[0_4px_20px_rgba(250,45,72,0.3)] transition-all hover:bg-[#ff3d56] hover:shadow-[0_6px_24px_rgba(250,45,72,0.4)]"
               >
                 Sign up
-              </Link>
+              </a>
             </>
           )}
         </div>

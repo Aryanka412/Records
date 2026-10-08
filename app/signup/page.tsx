@@ -1,9 +1,25 @@
 "use client"
 
-import { useState } from "react"
-import Link from "next/link"
-import { supabase } from "../lib/supabaseClient"
+import { useEffect, useState } from "react"
+import { getSupabaseConfigError, supabaseConfigError } from "../lib/supabaseClient"
 import AppShell from "../components/AppShell"
+
+const CONFIG_MESSAGE = "Supabase is not configured. Check your .env.local file."
+const CONNECTION_MESSAGE =
+  "Could not connect to Supabase. Check .env.local and restart npm run dev."
+
+function currentSupabaseConfigError() {
+  if (typeof document === "undefined") return supabaseConfigError
+  return getSupabaseConfigError()
+}
+
+function cleanSignupMessage(error: unknown) {
+  const message = error instanceof Error ? error.message : ""
+  if (message === "Failed to fetch" || message.includes("Failed to fetch")) {
+    return CONNECTION_MESSAGE
+  }
+  return message || "Could not create an account."
+}
 
 export default function SignupPage() {
   const [email, setEmail] = useState("")
@@ -12,27 +28,57 @@ export default function SignupPage() {
   const [message, setMessage] = useState("")
   const [loading, setLoading] = useState(false)
 
-  async function signup(e: React.FormEvent) {
-    e.preventDefault()
-    setLoading(true)
-    setMessage("")
+  useEffect(() => {
+    if (currentSupabaseConfigError()) setMessage(CONFIG_MESSAGE)
+  }, [])
 
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: { username: username || "Anonymous" },
-      },
-    })
-
-    if (error) {
-      setMessage(error.message)
-      setLoading(false)
+  async function signup() {
+    if (currentSupabaseConfigError()) {
+      setMessage(CONFIG_MESSAGE)
       return
     }
 
-    setMessage("Account created. Check your email if confirmation is required.")
-    setLoading(false)
+    setLoading(true)
+    setMessage("")
+
+    try {
+      const response = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password, username }),
+      })
+      const data = (await response.json().catch(() => null)) as {
+        error?: unknown
+        profileWarning?: unknown
+      } | null
+
+      if (!response.ok) {
+        const errorText = typeof data?.error === "string" ? data.error : ""
+        setMessage(cleanSignupMessage(new Error(errorText || "Could not create an account.")))
+        setLoading(false)
+        return
+      }
+
+      if (data?.profileWarning) {
+        setMessage(
+          "Account created, but the profile could not be saved. You can finish it from your profile page."
+        )
+        setLoading(false)
+        return
+      }
+
+      setMessage("Account created. Check your email if confirmation is required.")
+      setLoading(false)
+    } catch (error) {
+      setMessage(cleanSignupMessage(error))
+      setLoading(false)
+    }
+  }
+
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    event.stopPropagation()
+    void signup()
   }
 
   return (
@@ -54,7 +100,7 @@ export default function SignupPage() {
               Start rating albums, logging songs, and sharing reviews.
             </p>
 
-            <form onSubmit={signup} className="mt-8 space-y-4">
+            <form onSubmit={handleSubmit} className="mt-8 space-y-4">
               <input
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
@@ -77,22 +123,22 @@ export default function SignupPage() {
                 className="input-field"
                 required
               />
-              <button disabled={loading} className="btn btn-primary w-full">
+              <button type="submit" disabled={loading} className="btn btn-primary w-full">
                 {loading ? "Creating..." : "Sign up — it's free"}
               </button>
             </form>
 
             {message && (
-              <p className="text-body mt-5 text-sm" role="status">
+              <p className="mt-5 text-sm font-medium text-white" role="status">
                 {message}
               </p>
             )}
 
             <p className="mt-8 text-center text-sm text-zinc-500">
               Already have an account?{" "}
-              <Link href="/login" className="link-muted">
+              <a href="/login" className="link-muted">
                 Log in
-              </Link>
+              </a>
             </p>
           </div>
         </div>
