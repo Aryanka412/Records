@@ -313,6 +313,7 @@ export default function SongPage() {
   const name = decodeURIComponent(params.name as string)
 
   const [song, setSong] = useState<Song | null>(null)
+  const [loadError, setLoadError] = useState("")
   const [artistInfo, setArtistInfo] = useState<ArtistInfo | null>(null)
   const [reviews, setReviews] = useState<SavedReview[]>([])
   const [likes, setLikes] = useState<ReviewLike[]>([])
@@ -367,8 +368,7 @@ export default function SongPage() {
         } else {
           setLikes([])
         }
-      } catch (error) {
-        console.error("Failed to load likes:", error)
+      } catch {
         setLikes([])
       }
     }
@@ -396,8 +396,7 @@ export default function SongPage() {
         } else {
           setComments([])
         }
-      } catch (error) {
-        console.error("Failed to load comments:", error)
+      } catch {
         setComments([])
       }
     }
@@ -409,30 +408,34 @@ export default function SongPage() {
 
   useEffect(() => {
     async function getSong() {
-      const res = await fetch(`/api/spotify-search?q=${encodeURIComponent(name)}`)
-      const data = await res.json()
+      try {
+        const res = await fetch(`/api/spotify-search?q=${encodeURIComponent(name)}`)
+        const data = await res.json().catch(() => null)
 
-      setSong(data)
+        if (!data?.name) {
+          setLoadError(
+            typeof data?.error === "string" ? data.error : "Could not load this song."
+          )
+          return
+        }
 
-      if (data.name) {
+        setSong(data)
+
         const reviewRes = await fetch(
           `/api/reviews?song=${encodeURIComponent(data.name)}`
         )
+        const reviewData = await reviewRes.json().catch(() => null)
+        if (Array.isArray(reviewData)) setReviews(reviewData)
 
-        const reviewData = await reviewRes.json()
-
-        if (Array.isArray(reviewData)) {
-          setReviews(reviewData)
+        if (data.artist) {
+          const artistRes = await fetch(
+            `/api/artist-info?artist=${encodeURIComponent(data.artist)}`
+          )
+          const artistData = await artistRes.json().catch(() => null)
+          if (artistData && !artistData.error) setArtistInfo(artistData)
         }
-      }
-
-      if (data.artist) {
-        const artistRes = await fetch(
-          `/api/artist-info?artist=${encodeURIComponent(data.artist)}`
-        )
-
-        const artistData = await artistRes.json()
-        setArtistInfo(artistData)
+      } catch {
+        setLoadError("Could not load this song.")
       }
     }
 
@@ -533,9 +536,8 @@ export default function SongPage() {
           alert(data.error || "Like failed.")
         }
       }
-    } catch (error) {
-      console.error(error)
-      alert("Like failed. Check your terminal.")
+    } catch {
+      alert("Like failed. Check your connection and try again.")
     }
 
     setLiking("")
@@ -598,12 +600,19 @@ export default function SongPage() {
       } else {
         alert(data.error || "Something went wrong.")
       }
-    } catch (error) {
-      console.error(error)
-      alert("Save failed. Check your terminal.")
+    } catch {
+      alert("Save failed. Check your connection and try again.")
     }
 
     setSaving(false)
+  }
+
+  if (loadError) {
+    return (
+      <AppShell>
+        <p className="mx-auto max-w-lg px-6 py-24 text-center text-sm text-zinc-300">{loadError}</p>
+      </AppShell>
+    )
   }
 
   if (!song) {

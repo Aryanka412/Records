@@ -1,4 +1,6 @@
-import { searchSpotify } from "../../../lib/spotify"
+import { missingSpotifyCredentialsBody, searchSpotify, spotifyCredentialsResponse } from "../../../lib/spotify"
+
+export const runtime = "nodejs"
 
 export async function GET(request: Request) {
   try {
@@ -22,6 +24,8 @@ export async function GET(request: Request) {
       })
     }
 
+    if (missingSpotifyCredentialsBody()) return spotifyCredentialsResponse()
+
     const results = await searchSpotify(q, limit)
 
     const groups = {
@@ -37,7 +41,10 @@ export async function GET(request: Request) {
       total: results.length,
     })
   } catch (error: unknown) {
+    if (error instanceof Error && error.message === "Missing Spotify credentials") {
+      return spotifyCredentialsResponse()
+    }
     const message = error instanceof Error ? error.message : "Search failed"
-    return Response.json({ error: "Search failed", message }, { status: 500 })
+    return Response.json({ error: message, message }, { status: 500 })
   }
 }

@@ -1,91 +1,26 @@
+import { fetchArtistTopTracks, resolveSpotifyArtist } from "../../../lib/artistDiscography"
+import { missingSpotifyCredentialsBody, spotifyCredentialsResponse } from "../../../lib/spotify"
+
+export const runtime = "nodejs"
+export const dynamic = "force-dynamic"
+
 export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url)
-  const artist = searchParams.get("artist")
-
-  const id = process.env.SPOTIFY_CLIENT_ID
-  const secret = process.env.SPOTIFY_CLIENT_SECRET
-
+  const artist = new URL(request.url).searchParams.get("artist")?.trim() ?? ""
   if (!artist) {
-    return Response.json({ error: "Missing artist" })
+    return Response.json({ error: "Missing artist" }, { status: 400 })
   }
+  if (missingSpotifyCredentialsBody()) return spotifyCredentialsResponse()
 
-  if (!id || !secret) {
-    return Response.json({ error: "Missing Spotify keys" })
-  }
+  try {
+    const resolved = await resolveSpotifyArtist(artist)
+    if (!resolved) return Response.json([])
 
-  const tokenRes = await fetch("https://accounts.spotify.com/api/token", {
-    method: "POST",
-    headers: {
-      Authorization:
-        "Basic " + Buffer.from(id + ":" + secret).toString("base64"),
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: "grant_type=client_credentials",
-  })
-
-  const tokenData = await tokenRes.json()
-
-  const artistRes = await fetch(
-    `https://api.spotify.com/v1/search?q=${encodeURIComponent(artist)}&type=artist&limit=1`,
-    {
-      headers: {
-        Authorization: `Bearer ${tokenData.access_token}`,
-      },
+    const result = await fetchArtistTopTracks(resolved)
+    return Response.json(result)
+  } catch (error) {
+    if (error instanceof Error && error.message === "Missing Spotify credentials") {
+      return spotifyCredentialsResponse()
     }
-  )
-
-  const artistData = await artistRes.json()
-  const foundArtist = artistData.artists?.items?.[0]
-
-  if (!foundArtist) {
-    return Response.json([])
+    return Response.json({ error: "Could not load popular songs." }, { status: 502 })
   }
-
-  const tracksRes = await fetch(
-    `https://api.spotify.com/v1/artists/${foundArtist.id}/top-tracks?market=CA`,
-    {
-      headers: {
-        Authorization: `Bearer ${tokenData.access_token}`,
-      },
-    }
-  )
-
-  const tracksData = await tracksRes.json()
-
-  let tracks =
-    tracksData.tracks?.slice(0, 10).map((track: any) => ({
-      name: track.name,
-      artist: track.artists?.[0]?.name || foundArtist.name,
-      album: track.album?.name || "",
-      image: track.album?.images?.[0]?.url || "",
-      spotify: track.external_urls?.spotify || "",
-      duration_ms: track.duration_ms || 0,
-    })) || []
-
-  if (tracks.length === 0) {
-    const backupRes = await fetch(
-      `https://api.spotify.com/v1/search?q=${encodeURIComponent(
-        `artist:${foundArtist.name}`
-      )}&type=track&limit=10`,
-      {
-        headers: {
-          Authorization: `Bearer ${tokenData.access_token}`,
-        },
-      }
-    )
-
-    const backupData = await backupRes.json()
-
-    tracks =
-      backupData.tracks?.items?.map((track: any) => ({
-        name: track.name,
-        artist: track.artists?.[0]?.name || foundArtist.name,
-        album: track.album?.name || "",
-        image: track.album?.images?.[0]?.url || "",
-        spotify: track.external_urls?.spotify || "",
-        duration_ms: track.duration_ms || 0,
-      })) || []
-  }
-
-  return Response.json(tracks)
 }

@@ -1,31 +1,32 @@
+import {
+  getSpotifyToken,
+  missingLastfmResponse,
+  missingSpotifyCredentialsBody,
+  readLastfmKey,
+  spotifyCredentialsResponse,
+  spotifyFailureMessage,
+} from "../../../lib/spotify"
+
+export const runtime = "nodejs"
+
 export async function GET() {
   try {
-    const lastKey = process.env.LASTFM_API_KEY?.trim()
-    const id = process.env.SPOTIFY_CLIENT_ID
-    const secret = process.env.SPOTIFY_CLIENT_SECRET
+    const missingLastfm = missingLastfmResponse()
+    if (missingLastfm) return missingLastfm
 
-    if (!lastKey || !id || !secret) {
-      return Response.json({ error: "Missing keys" }, { status: 500 })
-    }
+    if (missingSpotifyCredentialsBody()) return spotifyCredentialsResponse()
 
+    const lastKey = readLastfmKey()
     const lastRes = await fetch(
-      `https://ws.audioscrobbler.com/2.0/?method=chart.gettoptracks&api_key=${lastKey}&format=json&limit=10`
+      `https://ws.audioscrobbler.com/2.0/?method=chart.gettoptracks&api_key=${lastKey}&format=json&limit=10`,
+      { cache: "no-store" }
     )
 
-    let lastData: any = null
-    try {
-      lastData = await lastRes.json()
-    } catch {
+    const lastData = await lastRes.json().catch(() => null)
+    if (!lastRes.ok || (lastData?.error && !lastData?.tracks)) {
       return Response.json(
-        { error: "Invalid Last.fm response" },
-        { status: 502 }
-      )
-    }
-
-    if (!lastRes.ok) {
-      return Response.json(
-        { error: "Last.fm request failed" },
-        { status: 502 }
+        { error: spotifyFailureMessage(lastData, "Last.fm request failed") },
+        { status: lastRes.ok ? 502 : lastRes.status }
       )
     }
 
@@ -40,35 +41,14 @@ export async function GET() {
       return Response.json([])
     }
 
-    const tokenRes = await fetch("https://accounts.spotify.com/api/token", {
-      method: "POST",
-      headers: {
-        Authorization:
-          "Basic " + Buffer.from(id + ":" + secret).toString("base64"),
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: "grant_type=client_credentials",
-    })
-
-    let tokenData: any = null
-    try {
-      tokenData = await tokenRes.json()
-    } catch {
-      return Response.json(
-        { error: "Invalid Spotify token response" },
-        { status: 502 }
-      )
-    }
-
-    if (!tokenRes.ok || !tokenData?.access_token) {
-      return Response.json(
-        { error: "Spotify token request failed" },
-        { status: 502 }
-      )
-    }
+    const token = await getSpotifyToken()
 
     const fullTracks = await Promise.all(
-      tracks.map(async (track: any) => {
+      tracks.map(async (track: {
+        name?: string
+        artist?: { name?: string }
+        playcount?: string
+      }) => {
         const name = track?.name || ""
         const artistName = track?.artist?.name || ""
         const q = `${name} ${artistName}`.trim()
@@ -88,14 +68,13 @@ export async function GET() {
           const searchRes = await fetch(
             `https://api.spotify.com/v1/search?q=${encodeURIComponent(q)}&type=track&limit=1`,
             {
-              headers: {
-                Authorization: `Bearer ${tokenData.access_token}`,
-              },
+              headers: { Authorization: `Bearer ${token}` },
+              cache: "no-store",
             }
           )
 
           const searchData = await searchRes.json().catch(() => null)
-          const song = searchData?.tracks?.items?.[0]
+          const song = searchRes.ok ? searchData?.tracks?.items?.[0] : null
 
           return {
             name,
@@ -119,11 +98,15 @@ export async function GET() {
     )
 
     return Response.json(fullTracks)
-  } catch (error: any) {
+  } catch (error) {
+    if (error instanceof Error && error.message === "Missing Spotify credentials") {
+      return spotifyCredentialsResponse()
+    }
+    const message = error instanceof Error ? error.message : "Unknown error"
     return Response.json(
       {
-        error: "Failed to load trending tracks",
-        message: error?.message || "Unknown error",
+        error: message || "Failed to load trending tracks",
+        message,
       },
       { status: 500 }
     )

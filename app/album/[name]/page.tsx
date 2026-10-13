@@ -358,6 +358,7 @@ export default function AlbumPage() {
   const name = decodeURIComponent(params.name as string)
 
   const [album, setAlbum] = useState<Album | null>(null)
+  const [loadError, setLoadError] = useState("")
   const [artistInfo, setArtistInfo] = useState<ArtistInfo | null>(null)
   const [artistInfoLoading, setArtistInfoLoading] = useState(false)
   const [reviews, setReviews] = useState<AlbumReview[]>([])
@@ -426,22 +427,22 @@ export default function AlbumPage() {
       setArtistInfo(null)
       setArtistInfoLoading(false)
 
+      try {
       const res = await fetch(`/api/album-search?q=${encodeURIComponent(name)}`)
-      const data = await res.json()
+      const data = await res.json().catch(() => null)
+
+      if (!data?.name) {
+        setLoadError(typeof data?.error === "string" ? data.error : "Could not load this album.")
+        return
+      }
 
       setAlbum(data)
 
-      if (data.name) {
-        const reviewRes = await fetch(
-          `/api/album-reviews?album=${encodeURIComponent(data.name)}`
-        )
-
-        const reviewData = await reviewRes.json()
-
-        if (Array.isArray(reviewData)) {
-          setReviews(reviewData)
-        }
-      }
+      const reviewRes = await fetch(
+        `/api/album-reviews?album=${encodeURIComponent(data.name)}`
+      )
+      const reviewData = await reviewRes.json().catch(() => null)
+      if (Array.isArray(reviewData)) setReviews(reviewData)
 
       if (data.artist) {
         setArtistInfoLoading(true)
@@ -449,7 +450,7 @@ export default function AlbumPage() {
           const artistRes = await fetch(
             `/api/artist-info?artist=${encodeURIComponent(data.artist)}`
           )
-          const artistData = await artistRes.json()
+          const artistData = await artistRes.json().catch(() => null)
           if (artistData && !artistData.error) {
             setArtistInfo(artistData)
           }
@@ -457,6 +458,9 @@ export default function AlbumPage() {
           // Artist info is optional
         }
         setArtistInfoLoading(false)
+      }
+      } catch {
+        setLoadError("Could not load this album.")
       }
     }
 
@@ -557,9 +561,8 @@ export default function AlbumPage() {
           alert(data.error || "Like failed.")
         }
       }
-    } catch (error) {
-      console.error(error)
-      alert("Like failed. Check your terminal.")
+    } catch {
+      alert("Like failed. Check your connection and try again.")
     }
 
     setLiking("")
@@ -620,12 +623,19 @@ export default function AlbumPage() {
       } else {
         alert(data.error || "Something went wrong.")
       }
-    } catch (error) {
-      console.error(error)
-      alert("Save failed. Check your terminal.")
+    } catch {
+      alert("Save failed. Check your connection and try again.")
     }
 
     setSaving(false)
+  }
+
+  if (loadError) {
+    return (
+      <AppShell>
+        <p className="mx-auto max-w-lg px-6 py-24 text-center text-sm text-zinc-300">{loadError}</p>
+      </AppShell>
+    )
   }
 
   if (!album) {
