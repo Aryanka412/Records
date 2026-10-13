@@ -53,48 +53,15 @@ type Track = {
 }
 
 type Album = {
+  id?: string
   name: string
   artist: string
   image: string
   spotify: string
   release_date: string
+  year?: string
   total_tracks: number
   album_type?: string
-}
-
-type RelatedArtist = {
-  id: string
-  name: string
-  image: string
-  spotify: string
-  popularity: number
-}
-
-type ArtistCatalog = {
-  topTracks: Track[]
-  allTracks: Track[]
-  featureTracks: Track[]
-  albums: Album[]
-  singles: Album[]
-  compilations: Album[]
-  features: Album[]
-  latestRelease: Album | null
-  relatedArtists: RelatedArtist[]
-  counts?: {
-    albums: number
-    singles: number
-    compilations: number
-    features: number
-    allTracks: number
-    featureTracks: number
-  }
-}
-
-type ReleaseItem = {
-  name: string
-  href: string
-  image?: string
-  subtitle?: string
 }
 
 function formatStat(value: string | undefined | null): string | null {
@@ -137,21 +104,14 @@ function formatDuration(ms?: number) {
   return `${mins}:${secs.toString().padStart(2, "0")}`
 }
 
-function formatReleaseLabel(date: string) {
-  if (!date) return ""
-  const year = date.slice(0, 4)
-  if (date.length === 4) return year
-  const parsed = new Date(date)
-  if (Number.isNaN(parsed.getTime())) return year
-  return parsed.toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  })
-}
-
 function albumHref(album: Album) {
   return `/album/${encodeURIComponent(album.name + " " + album.artist)}`
+}
+
+function latestRelease(releases: ReleaseGroups): Album | null {
+  const candidates = [...releases.albums, ...releases.singles].filter((release) => release.name)
+  if (candidates.length === 0) return null
+  return [...candidates].sort((a, b) => (b.release_date || "").localeCompare(a.release_date || ""))[0]
 }
 
 function trackHref(track: Track) {
@@ -216,43 +176,52 @@ function PremiumTrackList({
     <>
       <div className="flex flex-col gap-0.5">
         {shown.map((track, index) => (
-          <Link
+          <div
             key={`${track.name}-${track.album}-${index}`}
-            href={trackHref(track)}
-            className="group flex items-center gap-3 rounded-xl border border-transparent px-2 py-2.5 transition-all hover:border-white/[0.06] hover:bg-white/[0.04] sm:gap-4 sm:px-3"
+            className="group flex items-center gap-2 rounded-xl border border-transparent px-2 py-2.5 transition-all hover:border-white/[0.06] hover:bg-white/[0.04] sm:gap-3 sm:px-3"
           >
-            {ranked && (
-              <span className="w-5 shrink-0 text-center text-sm font-bold tabular-nums text-zinc-600 group-hover:text-zinc-400">
-                {index + 1}
-              </span>
+            <Link href={trackHref(track)} className="flex min-w-0 flex-1 items-center gap-3 sm:gap-4">
+              {ranked && (
+                <span className="w-5 shrink-0 text-center text-sm font-bold tabular-nums text-zinc-600 group-hover:text-zinc-400">
+                  {index + 1}
+                </span>
+              )}
+              {track.image ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={track.image}
+                  alt={track.name}
+                  className="h-11 w-11 shrink-0 rounded-lg object-cover shadow-[0_8px_24px_rgba(0,0,0,0.45)] transition-transform group-hover:scale-105 sm:h-12 sm:w-12"
+                />
+              ) : (
+                <div className="h-11 w-11 shrink-0 rounded-lg bg-zinc-800 sm:h-12 sm:w-12" />
+              )}
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold text-white transition-colors group-hover:text-[#fa2d48]">
+                  {track.name}
+                </p>
+                <p className="truncate text-xs text-zinc-500">
+                  {track.artist}
+                  {track.album ? ` · ${track.album}` : ""}
+                </p>
+              </div>
+              {formatDuration(track.duration_ms) && (
+                <span className="hidden shrink-0 text-xs tabular-nums text-zinc-600 sm:inline">
+                  {formatDuration(track.duration_ms)}
+                </span>
+              )}
+            </Link>
+            {track.spotify && (
+              <a
+                href={track.spotify}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="shrink-0 rounded-full px-2 py-1 text-[11px] font-medium text-zinc-500 transition hover:text-white"
+              >
+                Spotify
+              </a>
             )}
-            {track.image ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={track.image}
-                alt={track.name}
-                className="h-11 w-11 shrink-0 rounded-lg object-cover shadow-[0_8px_24px_rgba(0,0,0,0.45)] transition-transform group-hover:scale-105 sm:h-12 sm:w-12"
-              />
-            ) : (
-              <div className="h-11 w-11 shrink-0 rounded-lg bg-zinc-800 sm:h-12 sm:w-12" />
-            )}
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold text-white transition-colors group-hover:text-[#fa2d48]">
-                {track.name}
-              </p>
-              <p className="truncate text-xs text-zinc-500">
-                {ranked ? track.album : `${track.album}${track.artist ? ` · ${track.artist}` : ""}`}
-              </p>
-            </div>
-            {formatDuration(track.duration_ms) && (
-              <span className="shrink-0 text-xs tabular-nums text-zinc-600">
-                {formatDuration(track.duration_ms)}
-              </span>
-            )}
-            <span className="shrink-0 text-zinc-700 transition-colors group-hover:text-zinc-400">
-              ›
-            </span>
-          </Link>
+          </div>
         ))}
       </div>
       {hasMore && (
@@ -265,52 +234,6 @@ function PremiumTrackList({
         </button>
       )}
     </>
-  )
-}
-
-function PremiumReleaseGrid({
-  items,
-  round = false,
-}: {
-  items: ReleaseItem[]
-  round?: boolean
-}) {
-  if (items.length === 0) return null
-
-  return (
-    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-      {items.map((item) => (
-        <Link
-          key={item.href + item.name}
-          href={item.href}
-          className="group block"
-        >
-          <div
-            className={`relative mb-2.5 aspect-square overflow-hidden shadow-[0_12px_40px_rgba(0,0,0,0.45)] transition-transform duration-300 group-hover:scale-[1.03] ${
-              round ? "rounded-full ring-2 ring-white/10" : "rounded-xl ring-1 ring-white/10"
-            }`}
-          >
-            {item.image ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={item.image}
-                alt={item.name}
-                className="h-full w-full object-cover"
-              />
-            ) : (
-              <div className="h-full w-full bg-zinc-900" />
-            )}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
-          </div>
-          <p className="truncate text-sm font-semibold text-white transition-colors group-hover:text-[#fa2d48]">
-            {item.name}
-          </p>
-          {item.subtitle && (
-            <p className="mt-0.5 truncate text-xs text-zinc-500">{item.subtitle}</p>
-          )}
-        </Link>
-      ))}
-    </div>
   )
 }
 
@@ -402,9 +325,16 @@ function ArtistHero({
             </h1>
 
             {artist.tags.length > 0 && (
-              <p className="mt-3 text-sm capitalize text-zinc-500">
-                {artist.tags.slice(0, 4).join(" · ")}
-              </p>
+              <div className="mt-4 flex flex-wrap justify-center gap-2 lg:justify-start">
+                {artist.tags.slice(0, 6).map((tag) => (
+                  <span
+                    key={tag}
+                    className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium capitalize text-zinc-300 backdrop-blur-md"
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
             )}
 
             <div className="mt-8 flex flex-wrap justify-center gap-3 lg:justify-start">
@@ -548,18 +478,237 @@ function CommunityReviewCard({
   )
 }
 
+type ReleaseGroups = {
+  albums: Album[]
+  singles: Album[]
+  appearsOn: Album[]
+  compilations: Album[]
+}
+
+const emptyReleases: ReleaseGroups = {
+  albums: [],
+  singles: [],
+  appearsOn: [],
+  compilations: [],
+}
+
+const DISCOGRAPHY_TABS = [
+  { id: "albums", label: "Albums" },
+  { id: "singles", label: "Singles & EPs" },
+  { id: "appearsOn", label: "Appears On" },
+  { id: "compilations", label: "Compilations" },
+] as const
+
+type DiscographyTab = (typeof DISCOGRAPHY_TABS)[number]["id"]
+
+function releaseTypeLabel(type?: string) {
+  if (type === "single") return "Single"
+  if (type === "appears_on") return "Appears On"
+  if (type === "compilation") return "Compilation"
+  return "Album"
+}
+
+function LatestRelease({
+  release,
+  loading,
+  hidden,
+}: {
+  release: Album | null
+  loading: boolean
+  hidden: boolean
+}) {
+  if (hidden) return null
+
+  return (
+    <SectionBlock label="New" title="Latest release">
+      {loading && <div className="h-36 animate-pulse rounded-2xl bg-white/[0.05]" />}
+      {!loading && release && (
+        <article className="flex items-center gap-4 rounded-2xl border border-white/[0.06] bg-white/[0.03] p-3 transition hover:border-white/15 hover:bg-white/[0.05] sm:gap-5 sm:p-4">
+          <Link href={albumHref(release)} className="flex min-w-0 flex-1 items-center gap-4 sm:gap-5">
+            {release.image ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={release.image}
+                alt={release.name}
+                className="h-24 w-24 shrink-0 rounded-xl object-cover shadow-[0_12px_40px_rgba(0,0,0,0.45)] ring-1 ring-white/10 sm:h-32 sm:w-32"
+              />
+            ) : (
+              <div className="h-24 w-24 shrink-0 rounded-xl bg-zinc-900 sm:h-32 sm:w-32" />
+            )}
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500">
+                {releaseTypeLabel(release.album_type)}
+                {release.year ? ` · ${release.year}` : ""}
+              </p>
+              <h3 className="mt-1 truncate text-xl font-bold tracking-tight text-white sm:text-2xl">
+                {release.name}
+              </h3>
+              <p className="mt-1 truncate text-sm text-zinc-500">{release.artist}</p>
+            </div>
+          </Link>
+          {release.spotify && (
+            <a
+              href={release.spotify}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hidden shrink-0 rounded-full border border-white/10 px-3 py-1.5 text-xs font-medium text-zinc-300 transition hover:border-white/25 hover:text-white sm:inline-flex"
+            >
+              Spotify
+            </a>
+          )}
+        </article>
+      )}
+    </SectionBlock>
+  )
+}
+
+function DiscographyBrowser({
+  releases,
+  loading,
+  error,
+}: {
+  releases: ReleaseGroups
+  loading: boolean
+  error: string
+}) {
+  const [tab, setTab] = useState<DiscographyTab>("albums")
+  const [query, setQuery] = useState("")
+
+  const counts: Record<DiscographyTab, number> = {
+    albums: releases.albums.length,
+    singles: releases.singles.length,
+    appearsOn: releases.appearsOn.length,
+    compilations: releases.compilations.length,
+  }
+
+  useEffect(() => {
+    if (loading) return
+    if (counts[tab] > 0) return
+    const next = DISCOGRAPHY_TABS.find((item) => counts[item.id] > 0)
+    if (next) setTab(next.id)
+  }, [loading, counts, tab])
+
+  const active = releases[tab]
+  const filtered = active.filter((release) => {
+    const needle = query.trim().toLowerCase()
+    if (!needle) return true
+    return (
+      release.name.toLowerCase().includes(needle) ||
+      release.artist.toLowerCase().includes(needle)
+    )
+  })
+
+  return (
+    <SectionBlock
+      label="Discography"
+      title="Releases"
+      subtitle="Albums, singles, appearances, and compilations from Spotify."
+    >
+      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {DISCOGRAPHY_TABS.map((item) => {
+            const selected = tab === item.id
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setTab(item.id)}
+                className={`shrink-0 rounded-full border px-3.5 py-1.5 text-xs font-medium transition ${
+                  selected
+                    ? "border-white/20 bg-white text-black"
+                    : "border-white/10 bg-white/[0.03] text-zinc-400 hover:border-white/20 hover:text-white"
+                }`}
+              >
+                {item.label}
+                <span className={selected ? "ml-1.5 text-black/50" : "ml-1.5 text-zinc-600"}>
+                  {counts[item.id]}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+        <input
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="Search releases"
+          aria-label="Search releases"
+          className="w-full rounded-full border border-white/10 bg-zinc-950 px-4 py-2 text-sm text-white outline-none transition placeholder:text-zinc-600 focus:border-white/25 sm:max-w-xs"
+        />
+      </div>
+
+      {loading && (
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+          {Array.from({ length: 12 }).map((_, index) => (
+            <div key={index} className="animate-pulse">
+              <div className="mb-2.5 aspect-square rounded-xl bg-white/[0.06]" />
+              <div className="h-3 w-3/4 rounded bg-white/[0.06]" />
+              <div className="mt-2 h-2.5 w-1/2 rounded bg-white/[0.04]" />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {!loading && error && <p className="text-sm text-zinc-300">{error}</p>}
+
+      {!loading && !error && filtered.length === 0 && (
+        <p className="text-sm text-zinc-500">
+          {query.trim() ? "No releases match that search." : "No releases in this section."}
+        </p>
+      )}
+
+      {!loading && !error && filtered.length > 0 && (
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+          {filtered.map((release) => (
+            <article key={`${release.album_type}-${release.id || release.name}-${release.year}`} className="group">
+              <Link href={albumHref(release)} className="block">
+                <div className="relative mb-2.5 aspect-square overflow-hidden rounded-xl shadow-[0_12px_40px_rgba(0,0,0,0.45)] ring-1 ring-white/10 transition-transform duration-300 group-hover:scale-[1.03]">
+                  {release.image ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={release.image} alt={release.name} className="h-full w-full object-cover" />
+                  ) : (
+                    <div className="h-full w-full bg-zinc-900" />
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
+                </div>
+                <p className="truncate text-sm font-semibold text-white transition-colors group-hover:text-[#fa2d48]">
+                  {release.name}
+                </p>
+              </Link>
+              <p className="mt-0.5 truncate text-xs text-zinc-500">
+                {release.year || "Year unknown"}
+                <span className="px-1 text-zinc-700">·</span>
+                {releaseTypeLabel(release.album_type)}
+              </p>
+              {release.spotify && (
+                <a
+                  href={release.spotify}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-1 inline-flex text-[11px] font-medium text-zinc-500 transition hover:text-white"
+                >
+                  Spotify
+                </a>
+              )}
+            </article>
+          ))}
+        </div>
+      )}
+    </SectionBlock>
+  )
+}
+
 export default function ArtistPage() {
   const params = useParams()
   const name = decodeURIComponent(params.name as string)
 
   const [artist, setArtist] = useState<Artist | null>(null)
-  const [discography, setDiscography] = useState<Partial<ArtistCatalog> | null>(null)
-  const [catalog, setCatalog] = useState<ArtistCatalog | null>(null)
-  const [fallbackAlbums, setFallbackAlbums] = useState<Album[]>([])
-  const [fallbackTracks, setFallbackTracks] = useState<Track[]>([])
-  const [catalogLoading, setCatalogLoading] = useState(true)
-  const [catalogExtrasLoading, setCatalogExtrasLoading] = useState(false)
-  const [catalogError, setCatalogError] = useState("")
+  const [infoError, setInfoError] = useState("")
+  const [tracks, setTracks] = useState<Track[]>([])
+  const [tracksLoading, setTracksLoading] = useState(true)
+  const [tracksError, setTracksError] = useState("")
+  const [releases, setReleases] = useState<ReleaseGroups>(emptyReleases)
+  const [discographyLoading, setDiscographyLoading] = useState(true)
+  const [discographyError, setDiscographyError] = useState("")
   const [reviews, setReviews] = useState<ArtistReview[]>([])
   const [likes, setLikes] = useState<ReviewLike[]>([])
   const [rating, setRating] = useState(0)
@@ -616,102 +765,143 @@ export default function ArtistPage() {
   }, [])
 
   useEffect(() => {
-    async function getArtist() {
-      setCatalogLoading(true)
-      setCatalogExtrasLoading(false)
-      setCatalogError("")
-      setDiscography(null)
-      setCatalog(null)
-      setFallbackAlbums([])
-      setFallbackTracks([])
+    const artistParam = encodeURIComponent(name)
+    let cancelled = false
 
-      try {
-        const res = await fetch(`/api/artist-search?q=${encodeURIComponent(name)}`)
-        const data = await safeJson<Artist & { error?: string }>(res)
-        if (!data?.name) {
-          setCatalogLoading(false)
-          return
+    setArtist(null)
+    setInfoError("")
+    setTracks([])
+    setTracksLoading(true)
+    setTracksError("")
+    setReleases(emptyReleases)
+    setDiscographyLoading(true)
+    setDiscographyError("")
+    setReviews([])
+
+    function rememberArtist(next: Artist) {
+      if (cancelled) return
+      setInfoError("")
+      setArtist((current) => {
+        if (!current) return next
+        return {
+          name: next.name || current.name,
+          spotifyId: next.spotifyId || current.spotifyId,
+          image: next.image || current.image,
+          spotify: next.spotify || current.spotify,
+          followers: next.followers || current.followers,
+          popularity: next.popularity || current.popularity,
+          bio:
+            next.bio && next.bio !== "No artist bio available yet."
+              ? next.bio
+              : current.bio || next.bio,
+          listeners: next.listeners !== "0" ? next.listeners : current.listeners,
+          playcount: next.playcount !== "0" ? next.playcount : current.playcount,
+          tags: next.tags.length ? next.tags : current.tags,
         }
-        setArtist(data)
+      })
+    }
 
-        const artistParam = encodeURIComponent(data.name)
-        const idParam = data.spotifyId ? encodeURIComponent(data.spotifyId) : ""
-
-        const [reviewRes, tracksRes, albumsRes, discRes] = await Promise.all([
-          fetch(`/api/artist-reviews?artist=${artistParam}`),
-          fetch(`/api/artist-top-tracks?artist=${artistParam}`),
-          fetch(`/api/artist-top-albums?artist=${artistParam}`),
-          idParam
-            ? fetch(`/api/artist-discography?id=${idParam}&artist=${artistParam}`)
-            : fetch(`/api/artist-catalog?artist=${artistParam}`),
-        ])
-
-        const reviewData = await safeJson<ArtistReview[]>(reviewRes)
-        if (Array.isArray(reviewData)) {
-          setReviews(reviewData)
-        }
-
-        const tracksData = await safeJson<Track[]>(tracksRes)
-        if (Array.isArray(tracksData) && tracksData.length > 0) {
-          setFallbackTracks(tracksData)
-        }
-
-        const legacyAlbumsData = await safeJson<Album[]>(albumsRes)
-        if (Array.isArray(legacyAlbumsData) && legacyAlbumsData.length > 0) {
-          setFallbackAlbums(legacyAlbumsData)
-        }
-
-        const discData = await safeJson<Partial<ArtistCatalog> & { error?: string; message?: string }>(discRes)
-        const hasDiscography =
-          discData &&
-          !discData.error &&
-          ((discData.topTracks?.length ?? 0) > 0 || (discData.albums?.length ?? 0) > 0)
-
-        if (discRes.ok && hasDiscography) {
-          setDiscography(discData)
-          setCatalogError("")
-        } else if (
-          (tracksData?.length ?? 0) > 0 ||
-          (legacyAlbumsData?.length ?? 0) > 0
-        ) {
-          if (discData && !discData.error) {
-            setDiscography(discData)
-          }
-          setCatalogError("")
-        } else {
-          setCatalogError(
-            discData?.message || discData?.error || "Could not load discography. Try refreshing."
-          )
-        }
-
-        setCatalogLoading(false)
-
-        if (idParam) {
-          const loadExtras = async () => {
-            setCatalogExtrasLoading(true)
-            try {
-              const catalogRes = await fetch(
-                `/api/artist-catalog?id=${idParam}&artist=${artistParam}`
-              )
-              const catalogData = await safeJson<ArtistCatalog & { error?: string }>(catalogRes)
-              if (catalogRes.ok && catalogData && !catalogData.error) {
-                setCatalog(catalogData)
-              }
-            } catch {
-              // Extras are optional
-            }
-            setCatalogExtrasLoading(false)
-          }
-          window.setTimeout(loadExtras, 8000)
-        }
-      } catch {
-        setCatalogError("Could not load discography. Try refreshing.")
-        setCatalogLoading(false)
-        setCatalogExtrasLoading(false)
+    async function loadInfo() {
+      const res = await fetch(`/api/artist-info?artist=${artistParam}`)
+      const data = await safeJson<Artist & { error?: string; genres?: string[] }>(res)
+      if (cancelled) return
+      if (res.ok && data && !data.error && data.name) {
+        const tags = data.genres?.length ? data.genres : data.tags || []
+        rememberArtist({
+          name: data.name,
+          spotifyId: data.spotifyId || "",
+          image: data.image || "",
+          spotify: data.spotify || "",
+          followers: data.followers || 0,
+          popularity: data.popularity || 0,
+          bio: data.bio || "No artist bio available yet.",
+          listeners: data.listeners || "0",
+          playcount: data.playcount || "0",
+          tags,
+        })
+      } else {
+        setInfoError("Could not load artist info.")
       }
     }
 
-    getArtist()
+    async function loadTracks() {
+      const res = await fetch(`/api/artist-top-tracks?artist=${artistParam}`)
+      const data = await safeJson<{ tracks?: Track[]; source?: string } | Track[]>(res)
+      if (cancelled) return
+      const list = Array.isArray(data) ? data : data?.tracks
+      if (res.ok && Array.isArray(list)) {
+        setTracks(list.slice(0, 10))
+        setTracksError("")
+      } else {
+        setTracks([])
+        setTracksError("Could not load popular songs.")
+      }
+      setTracksLoading(false)
+    }
+
+    async function loadDiscography() {
+      const res = await fetch(`/api/artist-discography?artist=${artistParam}`)
+      const data = await safeJson<
+        ReleaseGroups & {
+          artist?: {
+            id?: string
+            name?: string
+            image?: string
+            spotify?: string
+            followers?: number
+            popularity?: number
+            genres?: string[]
+          }
+          error?: string
+        }
+      >(res)
+      if (cancelled) return
+      if (data?.artist?.name) {
+        rememberArtist({
+          name: data.artist.name,
+          spotifyId: data.artist.id || "",
+          image: data.artist.image || "",
+          spotify: data.artist.spotify || "",
+          followers: data.artist.followers || 0,
+          popularity: data.artist.popularity || 0,
+          bio: "No artist bio available yet.",
+          listeners: "0",
+          playcount: "0",
+          tags: data.artist.genres || [],
+        })
+      }
+      if (res.ok && data && !data.error) {
+        setReleases({
+          albums: Array.isArray(data.albums) ? data.albums : [],
+          singles: Array.isArray(data.singles) ? data.singles : [],
+          appearsOn: Array.isArray(data.appearsOn) ? data.appearsOn : [],
+          compilations: Array.isArray(data.compilations) ? data.compilations : [],
+        })
+        setDiscographyError("")
+      } else if (!data?.artist?.name) {
+        setReleases(emptyReleases)
+        setDiscographyError("Could not load discography.")
+      } else {
+        setReleases(emptyReleases)
+        setDiscographyError("Could not load discography.")
+      }
+      setDiscographyLoading(false)
+    }
+
+    async function loadReviews() {
+      const res = await fetch(`/api/artist-reviews?artist=${artistParam}`)
+      const data = await safeJson<ArtistReview[]>(res)
+      if (!cancelled && Array.isArray(data)) setReviews(data)
+    }
+
+    loadInfo()
+    loadTracks()
+    loadDiscography()
+    loadReviews()
+
+    return () => {
+      cancelled = true
+    }
   }, [name])
 
   function getLikeKey(item: ArtistReview) {
@@ -878,33 +1068,16 @@ export default function ArtistPage() {
   if (!artist) {
     return (
       <AppShell>
-        <LoadingScreen message="Loading artist..." />
+        {infoError && !discographyLoading ? (
+          <div className="mx-auto max-w-lg px-6 py-24 text-center">
+            <p className="text-sm text-zinc-300">Could not load artist info.</p>
+          </div>
+        ) : (
+          <LoadingScreen message="Loading artist..." />
+        )}
       </AppShell>
     )
   }
-
-  const topTracks =
-    (catalog?.topTracks?.length
-      ? catalog.topTracks
-      : discography?.topTracks?.length
-        ? discography.topTracks
-        : fallbackTracks) || []
-  const allTracks = (catalog?.allTracks?.length ? catalog.allTracks : topTracks) as Track[]
-  const featureTracks = catalog?.featureTracks || []
-  const albums =
-    (catalog?.albums?.length ? catalog.albums : discography?.albums?.length ? discography.albums : fallbackAlbums) ||
-    []
-  const singles = (catalog?.singles?.length ? catalog.singles : discography?.singles) || []
-  const compilations = catalog?.compilations?.length
-    ? catalog.compilations
-    : discography?.compilations || []
-  const features = (catalog?.features?.length ? catalog.features : discography?.features) || []
-  const relatedArtists = catalog?.relatedArtists || []
-  const counts = catalog?.counts
-  const latestRelease = catalog?.latestRelease || discography?.latestRelease || null
-
-  const resolvedLatest = latestRelease || albums[0] || singles[0] || null
-  const showAllSongs = allTracks.length > 0 && allTracks.length > topTracks.length
 
   const playcount = formatStat(artist.playcount)
   const aboutListeners = formatStat(artist.listeners)
@@ -922,189 +1095,40 @@ export default function ArtistPage() {
       <ArtistHero artist={artist} avgRating={avgRating} reviewCount={reviews.length} />
 
       <div className="mx-auto max-w-[88rem] px-5 sm:px-8 lg:px-12">
-        {/* Discography */}
+        {/* Latest release + popular songs + discography */}
         <div className="py-10 sm:py-12">
-          {catalogExtrasLoading && (
-            <p className="mb-6 text-sm text-zinc-500">Loading full song catalog…</p>
-          )}
+          <LatestRelease
+            release={latestRelease(releases)}
+            loading={discographyLoading}
+            hidden={!discographyLoading && !latestRelease(releases)}
+          />
 
-          {catalogError && (
-            <p className="mb-6 text-sm text-amber-400/90">{catalogError}</p>
-          )}
-
-          {!catalogLoading && (resolvedLatest || topTracks.length > 0) && (
-            <div className="mb-12 grid gap-8 lg:grid-cols-2 lg:gap-10">
-              {resolvedLatest && (
-                <SectionBlock
-                  label="New"
-                  title="Latest release"
-                  subtitle={
-                    resolvedLatest.release_date
-                      ? formatReleaseLabel(resolvedLatest.release_date)
-                      : "From discography"
-                  }
-                >
-                  <Link
-                    href={albumHref(resolvedLatest)}
-                    className="group flex items-center gap-5 rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4 transition-all hover:border-white/10 hover:bg-white/[0.05] sm:p-5"
-                  >
-                    <div className="relative shrink-0">
-                      {resolvedLatest.image ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={resolvedLatest.image}
-                          alt={resolvedLatest.name}
-                          className="h-28 w-28 rounded-xl object-cover shadow-[0_16px_48px_rgba(0,0,0,0.5)] transition-transform group-hover:scale-[1.03] sm:h-32 sm:w-32"
-                        />
-                      ) : (
-                        <div className="h-28 w-28 rounded-xl bg-zinc-900 sm:h-32 sm:w-32" />
-                      )}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#fa2d48]">
-                        {resolvedLatest.album_type === "single" ? "Single" : "Album"}
-                      </p>
-                      <p className="mt-2 text-lg font-bold leading-snug text-white transition-colors group-hover:text-[#fa2d48] sm:text-xl">
-                        {resolvedLatest.name}
-                      </p>
-                      {resolvedLatest.total_tracks > 0 && (
-                        <p className="mt-1.5 text-sm text-zinc-500">
-                          {resolvedLatest.total_tracks} track
-                          {resolvedLatest.total_tracks !== 1 ? "s" : ""}
-                        </p>
-                      )}
-                    </div>
-                  </Link>
-                </SectionBlock>
-              )}
-
-              {topTracks.length > 0 && (
-                <SectionBlock
-                  label="Popular"
-                  title="Top tracks"
-                  subtitle="Top tracks on Spotify (same ranking as Spotify's artist page)"
-                >
-                  <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-2 sm:p-3">
-                    <PremiumTrackList tracks={topTracks} initialCount={10} ranked />
-                  </div>
-                </SectionBlock>
-              )}
-            </div>
-          )}
-
-          {catalogLoading && (
-            <SectionBlock title="Albums" subtitle="Loading discography…">
-              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-                {Array.from({ length: 8 }).map((_, i) => (
-                  <div key={i} className="aspect-square animate-pulse rounded-xl bg-white/[0.06]" />
+          <SectionBlock label="Popular" title="Popular songs">
+            {tracksLoading && (
+              <div className="space-y-2">
+                {Array.from({ length: 5 }).map((_, index) => (
+                  <div key={index} className="h-14 animate-pulse rounded-xl bg-white/[0.05]" />
                 ))}
               </div>
-            </SectionBlock>
-          )}
-
-          {!catalogLoading && albums.length > 0 && (
-            <SectionBlock
-              label="Discography"
-              title="Albums"
-              subtitle={`${counts?.albums ?? albums.length} albums`}
-            >
-              <PremiumReleaseGrid
-                items={albums.map((album) => ({
-                  name: album.name,
-                  href: albumHref(album),
-                  image: album.image,
-                  subtitle: formatReleaseLabel(album.release_date),
-                }))}
-              />
-            </SectionBlock>
-          )}
-
-          {showAllSongs && (
-            <SectionBlock
-              title="All songs"
-              subtitle={`${counts?.allTracks ?? allTracks.length} songs in catalog`}
-            >
+            )}
+            {!tracksLoading && tracksError && (
+              <p className="text-sm text-zinc-300">{tracksError}</p>
+            )}
+            {!tracksLoading && !tracksError && tracks.length === 0 && (
+              <p className="text-sm text-zinc-500">No popular songs found for this artist.</p>
+            )}
+            {!tracksLoading && !tracksError && tracks.length > 0 && (
               <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-2 sm:p-3">
-                <PremiumTrackList tracks={allTracks} initialCount={15} />
+                <PremiumTrackList tracks={tracks.slice(0, 10)} initialCount={5} ranked />
               </div>
-            </SectionBlock>
-          )}
+            )}
+          </SectionBlock>
 
-          {!catalogLoading && singles.length > 0 && (
-            <SectionBlock
-              title="Singles & EPs"
-              subtitle={`${counts?.singles ?? singles.length} releases`}
-            >
-              <PremiumReleaseGrid
-                items={singles.map((single) => ({
-                  name: single.name,
-                  href: albumHref(single),
-                  image: single.image,
-                  subtitle: formatReleaseLabel(single.release_date),
-                }))}
-              />
-            </SectionBlock>
-          )}
-
-          {!catalogLoading && featureTracks.length > 0 && (
-            <SectionBlock
-              title="Features"
-              subtitle={`${counts?.featureTracks ?? featureTracks.length} guest appearances`}
-            >
-              <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-2 sm:p-3">
-                <PremiumTrackList tracks={featureTracks} initialCount={15} />
-              </div>
-            </SectionBlock>
-          )}
-
-          {!catalogLoading && features.length > 0 && (
-            <SectionBlock
-              title="Appears on"
-              subtitle={`${counts?.features ?? features.length} compilations & collabs`}
-            >
-              <PremiumReleaseGrid
-                items={features.map((item) => ({
-                  name: item.name,
-                  href: albumHref(item),
-                  image: item.image,
-                  subtitle:
-                    item.artist !== artist.name
-                      ? item.artist
-                      : formatReleaseLabel(item.release_date),
-                }))}
-              />
-            </SectionBlock>
-          )}
-
-          {!catalogLoading && compilations.length > 0 && (
-            <SectionBlock
-              title="Compilations"
-              subtitle={`${counts?.compilations ?? compilations.length} releases`}
-            >
-              <PremiumReleaseGrid
-                items={compilations.map((item) => ({
-                  name: item.name,
-                  href: albumHref(item),
-                  image: item.image,
-                  subtitle: formatReleaseLabel(item.release_date),
-                }))}
-              />
-            </SectionBlock>
-          )}
-
-          {!catalogLoading && relatedArtists.length > 0 && (
-            <SectionBlock title="Fans also like" subtitle="Similar artists on Spotify">
-              <PremiumReleaseGrid
-                round
-                items={relatedArtists.map((related) => ({
-                  name: related.name,
-                  href: `/artist/${encodeURIComponent(related.name)}`,
-                  image: related.image,
-                  subtitle: "Artist",
-                }))}
-              />
-            </SectionBlock>
-          )}
+          <DiscographyBrowser
+            releases={releases}
+            loading={discographyLoading}
+            error={discographyError}
+          />
         </div>
 
         {/* About + reviews + form */}

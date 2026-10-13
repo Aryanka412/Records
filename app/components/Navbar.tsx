@@ -9,6 +9,8 @@ import NotificationBell from "./NotificationBell"
 const navLinks = [
   { href: "/", label: "Home" },
   { href: "/discover", label: "Discover" },
+  { href: "/people", label: "People" },
+  { href: "/community", label: "Communities" },
   { href: "/profile", label: "Profile" },
 ]
 

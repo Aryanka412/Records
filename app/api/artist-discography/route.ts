@@ -1,29 +1,43 @@
-import { getArtistDiscographyQuick, missingSpotifyCredentialsBody, spotifyCredentialsResponse } from "../../../lib/spotify"
+import {
+  MAX_RELEASES_PER_GROUP,
+  fetchArtistDiscography,
+  resolveSpotifyArtist,
+} from "../../../lib/artistDiscography"
+import { missingSpotifyCredentialsBody, spotifyCredentialsResponse } from "../../../lib/spotify"
 
 export const runtime = "nodejs"
-export const maxDuration = 60
 export const dynamic = "force-dynamic"
+export const maxDuration = 60
 
-/** Fast: top tracks + all albums (~3-8s) */
 export async function GET(request: Request) {
-  try {
-    const { searchParams } = new URL(request.url)
-    const artist = searchParams.get("artist")?.trim()
-    const id = searchParams.get("id")?.trim()
+  const artist = new URL(request.url).searchParams.get("artist")?.trim() ?? ""
+  if (!artist) {
+    return Response.json({ error: "Missing artist" }, { status: 400 })
+  }
+  if (missingSpotifyCredentialsBody()) return spotifyCredentialsResponse()
 
-    if (!artist || !id) {
-      return Response.json({ error: "Missing artist or id" }, { status: 400 })
+  try {
+    const resolved = await resolveSpotifyArtist(artist)
+    if (!resolved) {
+      return Response.json({ error: "Could not load artist info." }, { status: 404 })
     }
 
-    if (missingSpotifyCredentialsBody()) return spotifyCredentialsResponse()
-
-    const discography = await getArtistDiscographyQuick(id, artist)
-    return Response.json(discography)
-  } catch (error: unknown) {
+    const discography = await fetchArtistDiscography(resolved)
+    return Response.json({
+      artist: resolved,
+      ...discography,
+      limitPerGroup: MAX_RELEASES_PER_GROUP,
+      counts: {
+        albums: discography.albums.length,
+        singles: discography.singles.length,
+        appearsOn: discography.appearsOn.length,
+        compilations: discography.compilations.length,
+      },
+    })
+  } catch (error) {
     if (error instanceof Error && error.message === "Missing Spotify credentials") {
       return spotifyCredentialsResponse()
     }
-    const message = error instanceof Error ? error.message : "Discography fetch failed"
-    return Response.json({ error: message, message }, { status: 500 })
+    return Response.json({ error: "Could not load discography." }, { status: 502 })
   }
 }
